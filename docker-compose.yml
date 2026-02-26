@@ -1,0 +1,23 @@
+services:
+  arecibo-api:
+    image: ghcr.io/contrived-com/arecibo:prod
+    container_name: arecibo-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8032:8080"
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - ARECIBO_API_KEYS=${ARECIBO_API_KEYS:-local-dev-key}
+      - ARECIBO_POLICY_TTL_SEC=${ARECIBO_POLICY_TTL_SEC:-60}
+      - ARECIBO_FORCE_GO_DARK=${ARECIBO_FORCE_GO_DARK:-false}
+      - ARECIBO_FORCE_GO_DARK_ON=${ARECIBO_FORCE_GO_DARK_ON:-}
+      - ARECIBO_POLICY_FILE=${ARECIBO_POLICY_FILE:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

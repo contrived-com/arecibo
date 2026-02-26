@@ -37,6 +37,17 @@ The API-first control-plane + ingest service is in `api/`.
 
 Run/test details and GO_DARK verification mode are documented in `api/README.md`.
 
+## Container and deployment artifacts
+
+This repository includes production-facing artifacts used by homelab update automation:
+
+- `Dockerfile` builds the `arecibo-api` container image.
+- `docker-compose.yml` defines the `arecibo-api` service for host deployment.
+- `.github/workflows/build_and_push.yml` builds and publishes `ghcr.io/contrived-com/arecibo` (`prod` and `latest` on `main`).
+- `.env.example` documents runtime env configuration for deploy environments.
+
+Default host binding for deployment is `127.0.0.1:8032 -> 8080` (nginx proxies `arecibo.contrived.com` to this port).
+
 ## Canonical launcher
 
 Use `agent/entrypoint.sh` as the default service entrypoint wrapper.

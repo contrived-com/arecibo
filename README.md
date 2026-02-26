@@ -44,9 +44,16 @@ This repository includes production-facing artifacts used by homelab update auto
 - `Dockerfile` builds the `arecibo-api` container image.
 - `docker-compose.yml` defines the `arecibo-api` service for host deployment.
 - `.github/workflows/build_and_push.yml` builds and publishes `ghcr.io/contrived-com/arecibo` (`prod` and `latest` on `main`).
-- `.env.example` documents runtime env configuration for deploy environments.
+- `.env.example` documents pointer-only runtime env configuration for deploy environments.
+- `terraform/vault/` defines app-level secrets and AppRole policy for runtime Vault fetch.
 
 Default host binding for deployment is `127.0.0.1:8032 -> 8080` (nginx proxies `arecibo.contrived.com` to this port).
+
+Production runtime follows the Vault-first pattern:
+
+- App-level secret values (for example API key material) live in Vault, not `.env`.
+- `.env` only contains pointers/credentials for Vault access (`VAULT_ADDR`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`, secret path/field selectors).
+- Compose joins the external `concordia` network for Vault connectivity.
 
 ## Canonical launcher
 

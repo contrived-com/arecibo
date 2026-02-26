@@ -19,3 +19,8 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Terraform state
+terraform/vault/.terraform/
+terraform/vault/*.tfstate*
+terraform/vault/.terraform.lock.hcl

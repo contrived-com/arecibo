@@ -13,11 +13,19 @@ Minimal API-first control-plane and ingest service for CEA.
 
 Environment variables:
 
-- `ARECIBO_API_KEYS` (default: `local-dev-key`) comma-separated keys accepted by `X-API-Key`
+- `VAULT_ADDR` Vault base URL (for example `http://concordia-vault:8200` in compose network)
+- `VAULT_ROLE_ID` AppRole role id for runtime auth
+- `VAULT_SECRET_ID` AppRole secret id for runtime auth
+- `ARECIBO_VAULT_PATH` (default: `arecibo/config`) KV v2 path under mount `secret`
+- `ARECIBO_API_KEYS_FIELD` (default: `arecibo_api_keys`) field storing comma-separated keys accepted by `X-API-Key`
 - `ARECIBO_POLICY_TTL_SEC` (default: `60`) policy response TTL, minimum `5`
 - `ARECIBO_POLICY_FILE` optional JSON override file for policies keyed as `<service>:<environment>`
 - `ARECIBO_FORCE_GO_DARK` (`true`/`false`) deterministic test mode for all heartbeat/events responses
 - `ARECIBO_FORCE_GO_DARK_ON` comma-separated endpoint targets: `heartbeat`, `events`
+
+Local-only fallback (when Vault is not configured):
+
+- `ARECIBO_API_KEYS` comma-separated keys for development/testing
 
 ## Run locally
 

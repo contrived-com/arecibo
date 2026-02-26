@@ -64,6 +64,16 @@ Primary objective: make fleet observability low-friction and low-maintenance so 
 - Auth via scoped token (or signed payload in future evolution).
 - Never emit secrets in payloads.
 - Collect only required identity + operational metadata.
+- Production secret pattern follows Concordia Vault:
+  - app-level secrets are defined in `terraform/vault/` and applied to Vault
+  - runtime containers fetch app secrets from Vault via AppRole
+  - `.env` is pointer-only (`VAULT_ADDR`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`, secret path/field selectors)
+  - do not place app secret values in `.env` for production
+
+## Deployment Network Pattern
+
+- Services that need Vault access should join the external Docker network `concordia`.
+- Keep host port binding on `127.0.0.1` and terminate external traffic at nginx.
 
 ## Repo Boundaries
 

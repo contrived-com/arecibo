@@ -4,6 +4,8 @@ import json
 import os
 from dataclasses import dataclass
 
+from .vault_client import get_vault_client
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -15,10 +17,25 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        keys_raw = os.getenv("ARECIBO_API_KEYS", "local-dev-key")
+        vault_path = os.getenv("ARECIBO_VAULT_PATH", "arecibo/config")
+        vault_key = os.getenv("ARECIBO_API_KEYS_FIELD", "arecibo_api_keys")
+        keys_raw: str | None = None
+
+        vault_client = get_vault_client()
+        if vault_client.configured:
+            keys_raw = vault_client.get_secret(vault_path, vault_key)
+            if not keys_raw:
+                raise RuntimeError(
+                    f"Vault is configured but no API key material found at secret/{vault_path} field {vault_key}."
+                )
+
+        if not keys_raw:
+            # Local dev/test fallback only when Vault is not configured.
+            keys_raw = os.getenv("ARECIBO_API_KEYS", "local-dev-key")
+
         keys = {item.strip() for item in keys_raw.split(",") if item.strip()}
         if not keys:
-            keys = {"local-dev-key"}
+            raise RuntimeError("Arecibo API key set is empty.")
 
         force_raw = os.getenv("ARECIBO_FORCE_GO_DARK", "false").lower()
         force_go_dark = force_raw in {"1", "true", "yes", "on"}

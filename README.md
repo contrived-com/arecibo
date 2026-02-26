@@ -27,6 +27,16 @@ pip install -r requirements.txt
 python agent/cea_agent.py
 ```
 
+## API service
+
+The API-first control-plane + ingest service is in `api/`.
+
+- Contract source of truth: `openapi.yml`
+- JSON schemas for validation: `schemas/`
+- Runtime + tests: `api/src/`, `api/tests/`
+
+Run/test details and GO_DARK verification mode are documented in `api/README.md`.
+
 ## Canonical launcher
 
 Use `agent/entrypoint.sh` as the default service entrypoint wrapper.

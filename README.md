@@ -1,6 +1,6 @@
-# embedded-agent
+# arecibo
 
-Reusable **embedded-agent** runtime for Contrived services.
+Reusable **arecibo** runtime for Contrived services.
 
 This repository uses an API-first workflow for Arecibo endpoints: define and agree on
 `openapi.yml` before implementing handlers.
@@ -53,7 +53,7 @@ It:
 
 ```dockerfile
 # pull CEA artifacts from dedicated image
-FROM ghcr.io/contrived/embedded-agent:0.1.0 AS cea
+FROM ghcr.io/contrived/arecibo:0.1.0 AS cea
 
 FROM python:3.12-slim
 WORKDIR /app

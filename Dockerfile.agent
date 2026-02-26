@@ -1,0 +1,28 @@
+FROM python:3.12-slim AS builder
+
+ARG UV_VERSION=0.5.31
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /work
+
+RUN pip install --no-cache-dir "uv==${UV_VERSION}"
+
+COPY agent /work/agent
+
+WORKDIR /work/agent
+RUN uv lock
+RUN uv build --wheel
+RUN uv venv /opt/cea/.venv
+RUN uv pip install --python /opt/cea/.venv/bin/python dist/*.whl
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+COPY --from=builder /opt/cea /opt/cea
+COPY --from=builder /work/agent/cea_agent.py /opt/cea/agent/cea_agent.py
+COPY --from=builder /work/agent/entrypoint.sh /opt/cea/agent/entrypoint.sh
+
+RUN chmod +x /opt/cea/agent/entrypoint.sh

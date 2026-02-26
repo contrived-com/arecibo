@@ -14,8 +14,8 @@ start_cea() {
   CEA_NICE_LEVEL="${CEA_NICE_LEVEL:-10}"
   CEA_IONICE_CLASS="${CEA_IONICE_CLASS:-3}"
   CEA_IONICE_LEVEL="${CEA_IONICE_LEVEL:-7}"
-  CEA_AGENT_BIN="${CEA_AGENT_BIN:-python}"
-  CEA_AGENT_ARGS="${CEA_AGENT_ARGS:-/opt/cea/agent/cea_agent.py}"
+  CEA_AGENT_BIN="${CEA_AGENT_BIN:-/opt/cea/.venv/bin/cea-agent}"
+  CEA_AGENT_ARGS="${CEA_AGENT_ARGS:-}"
 
   # shellcheck disable=SC2086
   if command -v ionice >/dev/null 2>&1; then

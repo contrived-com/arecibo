@@ -44,6 +44,7 @@ This repository includes production-facing artifacts used by homelab update auto
 - `Dockerfile` builds the `arecibo-api` container image.
 - `docker-compose.yml` defines the `arecibo-api` service for host deployment.
 - `.github/workflows/build_and_push.yml` builds and publishes `ghcr.io/contrived-com/arecibo` (`prod` and `latest` on `main`).
+- `.github/workflows/build_and_push.yml` also builds `ghcr.io/contrived-com/arecibo-agent` as a reusable agent artifact image.
 - `.env.example` documents pointer-only runtime env configuration for deploy environments.
 - `terraform/vault/` defines app-level secrets and AppRole policy for runtime Vault fetch.
 
@@ -66,6 +67,24 @@ It:
 3. Never blocks app startup.
 4. `exec`s your app command so app remains PID 1.
 
+## Agent artifact and locking
+
+The agent runtime is packaged in `agent/` and built as an atomic artifact image (`ghcr.io/contrived-com/arecibo-agent`):
+
+- `agent/pyproject.toml` defines the package and CLI entrypoint.
+- `Dockerfile.agent` builds a locked virtualenv under `/opt/cea/.venv`.
+- Services can copy agent runtime directly:
+
+```dockerfile
+FROM ghcr.io/contrived-com/arecibo-agent:prod AS cea
+
+COPY --from=cea /opt/cea /opt/cea
+COPY --from=cea /opt/cea/agent/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+```
+
+This avoids runtime dependency installation in downstream service images.
+
 ## CEA environment variables
 
 | Variable | Default | Purpose |
@@ -74,14 +93,14 @@ It:
 | `CEA_NICE_LEVEL` | `10` | CPU niceness for CEA process |
 | `CEA_IONICE_CLASS` | `3` | I/O class (1=realtime, 2=best-effort, 3=idle) |
 | `CEA_IONICE_LEVEL` | `7` | I/O level used when class is `2` |
-| `CEA_AGENT_BIN` | `python` | Agent executable |
-| `CEA_AGENT_ARGS` | `/opt/cea/agent/cea_agent.py` | Agent arguments/path |
+| `CEA_AGENT_BIN` | `/opt/cea/.venv/bin/cea-agent` | Agent executable |
+| `CEA_AGENT_ARGS` | `` (empty) | Optional additional args |
 
 ## Example integration (service Dockerfile)
 
 ```dockerfile
 # pull CEA artifacts from dedicated image
-FROM ghcr.io/contrived/arecibo:0.1.0 AS cea
+FROM ghcr.io/contrived-com/arecibo-agent:prod AS cea
 
 FROM python:3.12-slim
 WORKDIR /app

@@ -20,6 +20,8 @@ Primary objective: make fleet observability low-friction and low-maintenance so 
 - Script starts CEA in the background with lower scheduling priority, then `exec "$@"`.
 - The app command remains PID 1 and is called the **primary application process**.
 - Agent startup failure must never block app startup.
+- Agent package is defined in `agent/pyproject.toml` and built as a locked artifact image (`ghcr.io/contrived-com/arecibo-agent`).
+- Downstream services should consume `/opt/cea` via `COPY --from=...` instead of installing agent dependencies at runtime.
 
 ## Time Standard
 

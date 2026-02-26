@@ -3,10 +3,7 @@
 Embedded Agent - Main Script
 """
 
-
-def main():
-    print("Embedded agent initialized")
-
+from arecibo_agent.main import main
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arecibo/schemas/common/identity/1.0.0",
+  "type": "object",
+  "required": [
+    "serviceName",
+    "environment",
+    "repository",
+    "commitSha",
+    "instanceId",
+    "startupTs"
+  ],
+  "properties": {
+    "serviceName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["prod", "test", "dev", "local", "unknown"]
+    },
+    "repository": {
+      "type": "string",
+      "minLength": 1
+    },
+    "commitSha": {
+      "type": "string",
+      "minLength": 7
+    },
+    "commitUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "workflowRunUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "imageRef": {
+      "type": "string"
+    },
+    "imageDigest": {
+      "type": "string"
+    },
+    "hostname": {
+      "type": "string"
+    },
+    "instanceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "startupTs": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    }
+  },
+  "additionalProperties": false
+}

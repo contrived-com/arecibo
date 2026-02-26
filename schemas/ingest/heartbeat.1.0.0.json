@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arecibo/schemas/ingest/heartbeat/1.0.0",
+  "allOf": [
+    {
+      "$ref": "../common/cea-envelope.1.0.0.json"
+    }
+  ],
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "eventType": {
+      "const": "heartbeat"
+    },
+    "status": {
+      "type": "object",
+      "required": [
+        "agentUptimeSec",
+        "maxEventQueueDepthSinceLastHeartbeat",
+        "eventsReceivedTotal",
+        "eventsSentTotal",
+        "eventsDroppedTotal",
+        "eventsDroppedByQueueSizeSinceLastHeartbeat",
+        "eventsDroppedByPolicySinceLastHeartbeat",
+        "ceaRssBytes"
+      ],
+      "properties": {
+        "agentUptimeSec": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxEventQueueDepthSinceLastHeartbeat": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "eventsReceivedTotal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "eventsSentTotal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "eventsDroppedTotal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "eventsDroppedByQueueSizeSinceLastHeartbeat": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "eventsDroppedByPolicySinceLastHeartbeat": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ceaRssBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ceaCpuUserSec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "ceaCpuSystemSec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "primaryAppPid": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "primaryAppRssBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "containerMemoryCurrentBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "containerMemoryMaxBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "containerRxBytesSinceLastHeartbeat": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "containerTxBytesSinceLastHeartbeat": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "goDark": {
+          "type": "boolean"
+        },
+        "policyVersion": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,34 +1,79 @@
 # AGENTS.md
 
-## Project Overview
+## Purpose
 
-Arecibo is a lightweight Python embedded agent. It provides a minimal entry point (`agent.py`) for agent functionality.
+This repository defines the reusable **embedded-agent** pattern for Contrived services.
+The agent runs **inside** each app container as a background companion process (not a sidecar).
 
-## Project Structure
+Primary objective: make fleet observability low-friction and low-maintenance so adoption is "it just works".
 
-- `agent.py` — Main entry point
-- `requirements.txt` — Python dependencies (currently empty)
-- `scripts/claudia/` — Claudia agent metadata (PRD, progress log)
+## API-First Requirement
 
-## Development Setup
+- This project follows API-first development for Arecibo APIs.
+- Define and review `openapi.yml` before implementing API handlers.
+- Keep OpenAPI and JSON schemas aligned; implementation follows the spec, not the reverse.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+## Canonical Runtime Contract
 
-## Running
+- Canonical launcher is `agent/entrypoint.sh`.
+- Services may copy this script and use it as `ENTRYPOINT`.
+- Script starts CEA in the background with lower scheduling priority, then `exec "$@"`.
+- The app command remains PID 1 and is called the **primary application process**.
+- Agent startup failure must never block app startup.
 
-```bash
-python agent.py
-```
+## Time Standard
 
-## Conventions
+- All timestamps sent or received by CEA must use RFC 3339 date-time format in UTC.
+- UTC is represented with a trailing `Z` (Zulu time), for example `2026-02-25T22:15:30Z`.
+- Localization/timezone presentation happens upstream in Arecibo web or other consumers.
 
-- Python 3 standard style
-- Virtual environment in `.venv/` (gitignored)
+## Naming
 
-## Do Not Modify
+- Use `CEA_*` env vars (not `EA_*`).
+- Pattern name: `embedded-agent`.
+- Do not call this sidecar or Docker-in-Docker.
 
-- `scripts/claudia/prd.json` — Managed by Claudia task system; edit through PRD workflows, not directly
+## Integration Philosophy
+
+- Keep per-service integration minimal:
+  - copy CEA artifacts into image
+  - use canonical `entrypoint.sh`
+  - set a small set of `CEA_*` env vars
+- No shared app base image requirement.
+- Heterogeneous Dockerfiles are expected and supported.
+
+## Telemetry Architecture Direction
+
+- App emits telemetry locally to CEA using a best-effort interface.
+- Preferred local ingest is Unix socket `SOCK_DGRAM` (no network dependency).
+- If CEA is absent/unavailable, app should continue without blocking.
+- CEA owns sampling/filtering/redaction and uplink behavior based on homebase policy.
+- CEA can run independently of app telemetry and still provide announce/heartbeat.
+- In `GO_DARK`, CEA stays alive and keeps local ingest behavior stable while dropping outbound sends.
+
+## Reliability and Safety
+
+- Delivery is at-least-once; duplicates are expected and tolerated.
+- CEA queues must be bounded; never risk unbounded disk growth in default mode.
+- Resource usage should be observable (memory/process stats in heartbeats).
+- CEA should run lower priority than app (`nice` and optional `ionice`).
+
+## Security
+
+- TLS for collector endpoints.
+- Auth via scoped token (or signed payload in future evolution).
+- Never emit secrets in payloads.
+- Collect only required identity + operational metadata.
+
+## Repo Boundaries
+
+- This repo owns:
+  - embedded agent code
+  - canonical launcher script
+  - shared schemas under `schemas/`
+  - shared env var/config contract
+  - integration examples
+- Service repos own:
+  - app logic and app entry command
+  - service-specific rollout timing
+  - optional custom wrapper when needed

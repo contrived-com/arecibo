@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arecibo/schemas/api/result/1.0.0",
+  "type": "object",
+  "required": ["result"],
+  "properties": {
+    "result": {
+      "type": "object",
+      "required": ["status", "requestId"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["ok", "retryable", "rejected", "throttled", "directive"]
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retryAfterSec": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error": {
+          "type": "object",
+          "required": ["code", "message"],
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "directives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "FLUSH_STATS",
+                  "REFRESH_POLICY",
+                  "GO_DARK",
+                  "RESUME",
+                  "SET_HEARTBEAT_INTERVAL"
+                ]
+              },
+              "ttlSec": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "value": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

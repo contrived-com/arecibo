@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arecibo/schemas/policy/policy/1.0.0",
+  "type": "object",
+  "required": [
+    "policyVersion",
+    "serviceName",
+    "environment",
+    "enabled",
+    "defaultSampleRate",
+    "heartbeatIntervalSec"
+  ],
+  "properties": {
+    "policyVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "serviceName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "defaultSampleRate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "heartbeatIntervalSec": {
+      "type": "integer",
+      "minimum": 5
+    },
+    "eventOverrides": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "sampleRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "drop": {
+            "type": "boolean"
+          },
+          "maxPerMinute": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "redactionRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "action"],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": ["remove", "hash", "mask"]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "maxEventQueueDepth": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "maxBatchSize": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    }
+  },
+  "additionalProperties": false
+}

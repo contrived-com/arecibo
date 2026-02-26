@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arecibo/schemas/common/cea-envelope/1.0.0",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "eventType",
+    "eventId",
+    "sentAt",
+    "identity"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "eventType": {
+      "type": "string",
+      "minLength": 1
+    },
+    "eventId": {
+      "type": "string",
+      "minLength": 8
+    },
+    "sentAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "dedupeKey": {
+      "type": "string"
+    },
+    "identity": {
+      "$ref": "./identity.1.0.0.json"
+    }
+  },
+  "additionalProperties": true
+}

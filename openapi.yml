@@ -1,0 +1,226 @@
+openapi: 3.1.0
+info:
+  title: Arecibo API
+  version: 0.1.0
+  description: |
+    Control-plane and ingest API for CEA (Contrived Embedded Agent).
+
+    API-first contract draft:
+    - CEA announces itself with identity.
+    - CEA fetches policy.
+    - CEA sends heartbeat.
+    - CEA sends policy-filtered event batches.
+
+    Time standard:
+    - All timestamps are RFC 3339 UTC with trailing "Z".
+    - Localization occurs in upstream consumers.
+
+servers:
+  - url: https://arecibo.contrived.com
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: system
+  - name: ingest
+  - name: policy
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Health check
+      description: Liveness/readiness check for API service.
+      security: []
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, version]
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                  version:
+                    type: string
+                additionalProperties: false
+
+  /announce:
+    post:
+      tags: [ingest]
+      summary: Announce CEA startup
+      operationId: postAnnounce
+      description: |
+        Called by CEA during BOOTSTRAP after process start.
+        Establishes identity and allows server-side session binding.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/ingest/announce.1.0.0.json
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/api/result.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/Throttled"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /policy:
+    get:
+      tags: [policy]
+      summary: Fetch policy for current CEA session
+      operationId: getPolicy
+      description: |
+        Returns policy and agentSessionId for authenticated CEA.
+        CEA should treat policy as authoritative and honor ttlSec.
+      parameters:
+        - name: serviceName
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Declared service name for policy lookup and validation.
+        - name: environment
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Declared environment for policy lookup and validation.
+      responses:
+        "200":
+          description: Policy returned
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/policy/policy-response.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: No policy configured for service/environment
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/api/result.1.0.0.json
+        "429":
+          $ref: "#/components/responses/Throttled"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /heartbeat:
+    post:
+      tags: [ingest]
+      summary: Send CEA heartbeat
+      operationId: postHeartbeat
+      description: |
+        Called by CEA while ACTIVE. In GO_DARK, CEA should stop outbound sends.
+        The API may return directives via result payload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/ingest/heartbeat.1.0.0.json
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/api/result.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/Throttled"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /events:batch:
+    post:
+      tags: [ingest]
+      summary: Send app event batch
+      operationId: postEventsBatch
+      description: |
+        Called by CEA to deliver policy-filtered batches from local ingest.
+        Identity is bound server-side via agentSessionId.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/ingest/events-batch.1.0.0.json
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/api/result.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          description: Batch too large
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/api/result.1.0.0.json
+        "429":
+          $ref: "#/components/responses/Throttled"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Per-service scoped API key for CEA authentication.
+
+  responses:
+    Unauthorized:
+      description: Invalid or missing API key.
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/api/result.1.0.0.json
+    Forbidden:
+      description: Authenticated but not permitted for this service/environment.
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/api/result.1.0.0.json
+    Throttled:
+      description: Request throttled. Retry using retryAfterSec guidance.
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/api/result.1.0.0.json
+    InternalError:
+      description: Unhandled server error.
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/api/result.1.0.0.json

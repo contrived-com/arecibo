@@ -190,7 +190,7 @@ def create_app() -> FastAPI:
                     "requestId": request.state.request_id,
                     "serviceName": serviceName,
                     "environment": environment,
-                    "agentSessionId": response_payload["agentSessionId"],
+                    "transponderSessionId": response_payload["transponderSessionId"],
                 }
             },
         )
@@ -207,7 +207,7 @@ def create_app() -> FastAPI:
                     "requestId": request.state.request_id,
                     "serviceName": payload["identity"]["serviceName"],
                     "environment": payload["identity"]["environment"],
-                    "agentUptimeSec": status_payload["agentUptimeSec"],
+                    "transponderUptimeSec": status_payload["transponderUptimeSec"],
                     "eventsReceivedTotal": status_payload["eventsReceivedTotal"],
                     "eventsSentTotal": status_payload["eventsSentTotal"],
                 }
@@ -242,7 +242,7 @@ def create_app() -> FastAPI:
             extra={
                 "fields": {
                     "requestId": request.state.request_id,
-                    "agentSessionId": payload["agentSessionId"],
+                    "transponderSessionId": payload["transponderSessionId"],
                     "batchId": payload["batchId"],
                     "eventCount": event_count,
                 }

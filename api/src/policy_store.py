@@ -28,7 +28,7 @@ class PolicyStore:
     def build_policy_response(self, service_name: str, environment: str, policy: dict) -> dict:
         return {
             "schemaVersion": "1.0.0",
-            "agentSessionId": self.get_session_id(service_name, environment),
+            "transponderSessionId": self.get_session_id(service_name, environment),
             "fetchedAt": utc_now(),
             "ttlSec": self.policy_ttl_sec,
             "policy": policy,

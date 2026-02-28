@@ -13,16 +13,16 @@ COPY transponder /work/transponder
 WORKDIR /work/transponder
 RUN uv lock
 RUN uv build --wheel
-RUN uv venv /opt/cea/.venv
-RUN uv pip install --python /opt/cea/.venv/bin/python dist/*.whl
+RUN uv venv /opt/transponder/.venv
+RUN uv pip install --python /opt/transponder/.venv/bin/python dist/*.whl
 
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-COPY --from=builder /opt/cea /opt/cea
-COPY --from=builder /work/transponder/cea_transponder.py /opt/cea/transponder/cea_transponder.py
-COPY --from=builder /work/transponder/entrypoint.sh /opt/cea/transponder/entrypoint.sh
+COPY --from=builder /opt/transponder /opt/transponder
+COPY --from=builder /work/transponder/transponder.py /opt/transponder/transponder/transponder.py
+COPY --from=builder /work/transponder/entrypoint.sh /opt/transponder/transponder/entrypoint.sh
 
-RUN chmod +x /opt/cea/transponder/entrypoint.sh
+RUN chmod +x /opt/transponder/transponder/entrypoint.sh

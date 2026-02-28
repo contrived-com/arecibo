@@ -4,7 +4,7 @@
   "type": "object",
   "required": [
     "schemaVersion",
-    "agentSessionId",
+    "transponderSessionId",
     "fetchedAt",
     "ttlSec",
     "policy"
@@ -13,7 +13,7 @@
     "schemaVersion": {
       "const": "1.0.0"
     },
-    "agentSessionId": {
+    "transponderSessionId": {
       "type": "string",
       "minLength": 1
     },

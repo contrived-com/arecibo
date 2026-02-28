@@ -3,7 +3,7 @@
   "$id": "arecibo/schemas/ingest/heartbeat/1.0.0",
   "allOf": [
     {
-      "$ref": "../common/cea-envelope.1.0.0.json"
+      "$ref": "../common/transponder-envelope.1.0.0.json"
     }
   ],
   "type": "object",
@@ -15,17 +15,17 @@
     "status": {
       "type": "object",
       "required": [
-        "agentUptimeSec",
+        "transponderUptimeSec",
         "maxEventQueueDepthSinceLastHeartbeat",
         "eventsReceivedTotal",
         "eventsSentTotal",
         "eventsDroppedTotal",
         "eventsDroppedByQueueSizeSinceLastHeartbeat",
         "eventsDroppedByPolicySinceLastHeartbeat",
-        "ceaRssBytes"
+        "transponderRssBytes"
       ],
       "properties": {
-        "agentUptimeSec": {
+        "transponderUptimeSec": {
           "type": "integer",
           "minimum": 0
         },
@@ -53,15 +53,15 @@
           "type": "integer",
           "minimum": 0
         },
-        "ceaRssBytes": {
+        "transponderRssBytes": {
           "type": "integer",
           "minimum": 0
         },
-        "ceaCpuUserSec": {
+        "transponderCpuUserSec": {
           "type": "number",
           "minimum": 0
         },
-        "ceaCpuSystemSec": {
+        "transponderCpuSystemSec": {
           "type": "number",
           "minimum": 0
         },

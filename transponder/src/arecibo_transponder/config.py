@@ -51,7 +51,7 @@ class TransponderConfig:
     @classmethod
     def from_env(cls, startup_ts: str) -> "TransponderConfig":
         collector_candidates_raw = os.getenv(
-            "CEA_COLLECTOR_CANDIDATES",
+            "TRANSPONDER_COLLECTOR_CANDIDATES",
             "http://arecibo-api:8080,https://arecibo.contrived.com",
         )
         collector_candidates = [
@@ -59,7 +59,7 @@ class TransponderConfig:
             for value in collector_candidates_raw.split(",")
             if value.strip()
         ]
-        collector_override = os.getenv("CEA_COLLECTOR_URL", "").strip().rstrip("/")
+        collector_override = os.getenv("TRANSPONDER_COLLECTOR_URL", "").strip().rstrip("/")
         if collector_override:
             collector_candidates = [collector_override] + collector_candidates
         deduped_candidates: list[str] = []
@@ -67,20 +67,20 @@ class TransponderConfig:
             if candidate and candidate not in deduped_candidates:
                 deduped_candidates.append(candidate)
 
-        service_name = os.getenv("CEA_SERVICE_NAME", os.getenv("SERVICE_NAME", "unknown-service"))
-        environment = os.getenv("CEA_ENVIRONMENT", os.getenv("ENVIRONMENT", "unknown"))
-        repository = os.getenv("CEA_REPOSITORY", os.getenv("GITHUB_REPOSITORY", "unknown-repository"))
-        commit_sha = os.getenv("CEA_COMMIT_SHA", os.getenv("GIT_COMMIT", "unknown"))
-        instance_id = os.getenv("CEA_INSTANCE_ID", socket.gethostname())
+        service_name = os.getenv("TRANSPONDER_SERVICE_NAME", os.getenv("SERVICE_NAME", "unknown-service"))
+        environment = os.getenv("TRANSPONDER_ENVIRONMENT", os.getenv("ENVIRONMENT", "unknown"))
+        repository = os.getenv("TRANSPONDER_REPOSITORY", os.getenv("GITHUB_REPOSITORY", "unknown-repository"))
+        commit_sha = os.getenv("TRANSPONDER_COMMIT_SHA", os.getenv("GIT_COMMIT", "unknown"))
+        instance_id = os.getenv("TRANSPONDER_INSTANCE_ID", socket.gethostname())
         hostname = os.getenv("HOSTNAME", socket.gethostname())
 
-        api_key = os.getenv("CEA_API_KEY", "").strip()
+        api_key = os.getenv("TRANSPONDER_API_KEY", "").strip()
 
         return cls(
             api_key=api_key,
             collector_candidates=deduped_candidates,
-            probe_timeout_sec=float(os.getenv("CEA_PROBE_TIMEOUT_SEC", "0.8")),
-            http_timeout_sec=float(os.getenv("CEA_HTTP_TIMEOUT_SEC", "2.0")),
+            probe_timeout_sec=float(os.getenv("TRANSPONDER_PROBE_TIMEOUT_SEC", "0.8")),
+            http_timeout_sec=float(os.getenv("TRANSPONDER_HTTP_TIMEOUT_SEC", "2.0")),
             service_name=service_name,
             environment=environment,
             repository=repository,
@@ -88,13 +88,13 @@ class TransponderConfig:
             instance_id=instance_id,
             startup_ts=startup_ts,
             hostname=hostname,
-            heartbeat_interval_sec=_int("CEA_HEARTBEAT_INTERVAL_SEC", 30, minimum=5),
+            heartbeat_interval_sec=_int("TRANSPONDER_HEARTBEAT_INTERVAL_SEC", 30, minimum=5),
             heartbeat_min_interval_sec=5,
-            policy_refresh_jitter_sec=_int("CEA_POLICY_REFRESH_JITTER_SEC", 2, minimum=0),
-            events_flush_interval_sec=_int("CEA_EVENTS_FLUSH_INTERVAL_SEC", 5, minimum=1),
-            queue_max_depth=_int("CEA_MAX_EVENT_QUEUE_DEPTH", 10000, minimum=1),
-            max_batch_size=_int("CEA_MAX_BATCH_SIZE", 1000, minimum=1),
-            ingest_socket_enabled=_bool("CEA_INGEST_SOCKET_ENABLED", True),
-            ingest_socket_path=os.getenv("CEA_INGEST_SOCKET_PATH", "/tmp/cea-ingest.sock"),
-            ingest_socket_buffer_bytes=_int("CEA_INGEST_SOCKET_BUFFER_BYTES", 65535, minimum=1024),
+            policy_refresh_jitter_sec=_int("TRANSPONDER_POLICY_REFRESH_JITTER_SEC", 2, minimum=0),
+            events_flush_interval_sec=_int("TRANSPONDER_EVENTS_FLUSH_INTERVAL_SEC", 5, minimum=1),
+            queue_max_depth=_int("TRANSPONDER_MAX_EVENT_QUEUE_DEPTH", 10000, minimum=1),
+            max_batch_size=_int("TRANSPONDER_MAX_BATCH_SIZE", 1000, minimum=1),
+            ingest_socket_enabled=_bool("TRANSPONDER_INGEST_SOCKET_ENABLED", True),
+            ingest_socket_path=os.getenv("TRANSPONDER_INGEST_SOCKET_PATH", "/tmp/transponder-ingest.sock"),
+            ingest_socket_buffer_bytes=_int("TRANSPONDER_INGEST_SOCKET_BUFFER_BYTES", 65535, minimum=1024),
         )

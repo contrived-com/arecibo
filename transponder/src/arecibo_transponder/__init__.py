@@ -1,1 +1,1 @@
-"""Arecibo CEA transponder runtime package."""
+"""Arecibo transponder runtime package."""

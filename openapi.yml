@@ -3,13 +3,13 @@ info:
   title: Arecibo API
   version: 0.1.0
   description: |
-    Control-plane and ingest API for CEA (Contrived Embedded Agent).
+    Control-plane and ingest API for the embedded transponder runtime.
 
     API-first contract draft:
-    - CEA announces itself with identity.
-    - CEA fetches policy.
-    - CEA sends heartbeat.
-    - CEA sends policy-filtered event batches.
+    - Transponder announces itself with identity.
+    - Transponder fetches policy.
+    - Transponder sends heartbeat.
+    - Transponder sends policy-filtered event batches.
 
     Time standard:
     - All timestamps are RFC 3339 UTC with trailing "Z".
@@ -55,10 +55,10 @@ paths:
   /announce:
     post:
       tags: [ingest]
-      summary: Announce CEA startup
+      summary: Announce transponder startup
       operationId: postAnnounce
       description: |
-        Called by CEA during BOOTSTRAP after process start.
+        Called by the transponder during BOOTSTRAP after process start.
         Establishes identity and allows server-side session binding.
       requestBody:
         required: true
@@ -85,11 +85,11 @@ paths:
   /policy:
     get:
       tags: [policy]
-      summary: Fetch policy for current CEA session
+      summary: Fetch policy for current transponder session
       operationId: getPolicy
       description: |
-        Returns policy and agentSessionId for authenticated CEA.
-        CEA should treat policy as authoritative and honor ttlSec.
+        Returns policy and transponderSessionId for authenticated transponder.
+        Transponder should treat policy as authoritative and honor ttlSec.
       parameters:
         - name: serviceName
           in: query
@@ -128,10 +128,10 @@ paths:
   /heartbeat:
     post:
       tags: [ingest]
-      summary: Send CEA heartbeat
+      summary: Send transponder heartbeat
       operationId: postHeartbeat
       description: |
-        Called by CEA while ACTIVE. In GO_DARK, CEA should stop outbound sends.
+        Called by the transponder while ACTIVE. In GO_DARK, the transponder should stop outbound sends.
         The API may return directives via result payload.
       requestBody:
         required: true
@@ -161,8 +161,8 @@ paths:
       summary: Send app event batch
       operationId: postEventsBatch
       description: |
-        Called by CEA to deliver policy-filtered batches from local ingest.
-        Identity is bound server-side via agentSessionId.
+        Called by the transponder to deliver policy-filtered batches from local ingest.
+        Identity is bound server-side via transponderSessionId.
       requestBody:
         required: true
         content:
@@ -197,7 +197,7 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
-      description: Per-service scoped API key for CEA authentication.
+      description: Per-service scoped API key for transponder authentication.
 
   responses:
     Unauthorized:

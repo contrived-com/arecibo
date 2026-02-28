@@ -12,7 +12,7 @@ dev = [
 ]
 
 [project.scripts]
-cea-transponder = "arecibo_transponder.main:main"
+transponder = "arecibo_transponder.main:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "arecibo/schemas/common/cea-envelope/1.0.0",
+  "$id": "arecibo/schemas/common/transponder-envelope/1.0.0",
   "type": "object",
   "required": [
     "schemaVersion",

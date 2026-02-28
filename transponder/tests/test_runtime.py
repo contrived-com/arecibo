@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from arecibo_transponder.config import TransponderConfig
-from arecibo_transponder.runtime import CEARuntime
+from arecibo_transponder.runtime import TransponderRuntime
 
 
 class FakeClient:
     def __init__(self):
         self.calls = []
         self.policy_payload = {
-            "agentSessionId": "session-123",
+            "transponderSessionId": "session-123",
             "ttlSec": 60,
             "policy": {
                 "policyVersion": "1.0.0",
@@ -59,13 +59,13 @@ def _config() -> TransponderConfig:
         queue_max_depth=1000,
         max_batch_size=1000,
         ingest_socket_enabled=False,
-        ingest_socket_path="/tmp/cea.sock",
+        ingest_socket_path="/tmp/transponder.sock",
         ingest_socket_buffer_bytes=65535,
     )
 
 
 def test_bootstrap_sets_selected_collector_and_policy(monkeypatch):
-    runtime = CEARuntime(_config())
+    runtime = TransponderRuntime(_config())
     fake = FakeClient()
     monkeypatch.setattr(runtime, "_client", lambda: fake)
 
@@ -82,7 +82,7 @@ def test_bootstrap_sets_selected_collector_and_policy(monkeypatch):
 
 
 def test_directives_toggle_go_dark():
-    runtime = CEARuntime(_config())
+    runtime = TransponderRuntime(_config())
     runtime._apply_directives(
         {
             "result": {
@@ -107,7 +107,7 @@ def test_directives_toggle_go_dark():
 
 
 def test_flush_events_sends_batch(monkeypatch):
-    runtime = CEARuntime(_config())
+    runtime = TransponderRuntime(_config())
     fake = FakeClient()
     runtime.state.selected_collector = "http://collector:8080"
     runtime.state.policy.session_id = "session-123"
@@ -119,5 +119,5 @@ def test_flush_events_sends_batch(monkeypatch):
 
     sent = [call for call in fake.calls if call[0] == "events_batch"]
     assert len(sent) == 1
-    assert sent[0][1]["agentSessionId"] == "session-123"
+    assert sent[0][1]["transponderSessionId"] == "session-123"
     assert len(sent[0][1]["events"]) == 1

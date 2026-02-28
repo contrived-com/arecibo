@@ -3,7 +3,7 @@
   "$id": "arecibo/schemas/ingest/announce/1.0.0",
   "allOf": [
     {
-      "$ref": "../common/cea-envelope.1.0.0.json"
+      "$ref": "../common/transponder-envelope.1.0.0.json"
     }
   ],
   "type": "object",
@@ -14,13 +14,13 @@
     },
     "runtime": {
       "type": "object",
-      "required": ["ceaPid", "ceaVersion"],
+      "required": ["transponderPid", "transponderVersion"],
       "properties": {
-        "ceaPid": {
+        "transponderPid": {
           "type": "integer",
           "minimum": 1
         },
-        "ceaVersion": {
+        "transponderVersion": {
           "type": "string"
         },
         "pythonVersion": {

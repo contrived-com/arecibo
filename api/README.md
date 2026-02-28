@@ -1,6 +1,6 @@
 # Arecibo API Service
 
-Minimal API-first control-plane and ingest service for CEA.
+Minimal API-first control-plane and ingest service for the transponder runtime.
 
 ## Location
 
@@ -61,7 +61,7 @@ pytest -q
 
 ## GO_DARK verification mode
 
-GO_DARK is a non-terminating quiet mode: CEA remains alive and stable, continues local behavior, and stops outbound sends.
+GO_DARK is a non-terminating quiet mode: the transponder remains alive and stable, continues local behavior, and stops outbound sends.
 
 Use deterministic test mode in API responses:
 
@@ -75,4 +75,4 @@ or endpoint-scoped:
 ARECIBO_FORCE_GO_DARK_ON=heartbeat uvicorn src.app:app --port 8080
 ```
 
-When enabled, `POST /heartbeat` and/or `POST /events:batch` returns `result.directives` with `GO_DARK` so CEA handling can be validated safely.
+When enabled, `POST /heartbeat` and/or `POST /events:batch` returns `result.directives` with `GO_DARK` so transponder handling can be validated safely.

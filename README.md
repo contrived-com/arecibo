@@ -7,14 +7,14 @@ This repository uses an API-first workflow for Arecibo endpoints: define and agr
 
 This project provides a canonical in-container companion transponder pattern:
 
-- CEA runs in the background inside the app container.
+- Transponder runs in the background inside the app container.
 - App startup is never blocked by transponder startup failures.
 - The app remains PID 1 (`exec "$@"` behavior in launcher), referred to as the **primary application process**.
 - Integration works across heterogeneous Dockerfiles (no shared base required).
 
 ## Time format
 
-- All CEA timestamps use RFC 3339 in UTC with a trailing `Z` (Zulu time).
+- All transponder timestamps use RFC 3339 in UTC with a trailing `Z` (Zulu time).
 - Example: `2026-02-25T22:15:30Z`
 - Any localization or timezone conversion is handled by upstream systems.
 
@@ -24,7 +24,7 @@ This project provides a canonical in-container companion transponder pattern:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python transponder/cea_transponder.py
+python transponder/transponder.py
 ```
 
 ## API service
@@ -62,8 +62,8 @@ Use `transponder/entrypoint.sh` as the default service entrypoint wrapper.
 
 It:
 
-1. Starts CEA in the background.
-2. Applies lower scheduling priority to CEA (`nice`, optional `ionice`).
+1. Starts the transponder in the background.
+2. Applies lower scheduling priority to the transponder (`nice`, optional `ionice`).
 3. Never blocks app startup.
 4. `exec`s your app command so app remains PID 1.
 
@@ -72,14 +72,14 @@ It:
 The transponder runtime is packaged in `transponder/` and built as an atomic artifact image (`ghcr.io/contrived-com/arecibo-transponder`):
 
 - `transponder/pyproject.toml` defines the package and CLI entrypoint.
-- `Dockerfile.transponder` builds a locked virtualenv under `/opt/cea/.venv`.
+- `Dockerfile.transponder` builds a locked virtualenv under `/opt/transponder/.venv`.
 - Services can copy transponder runtime directly:
 
 ```dockerfile
-FROM ghcr.io/contrived-com/arecibo-transponder:prod AS cea
+FROM ghcr.io/contrived-com/arecibo-transponder:prod AS transponder
 
-COPY --from=cea /opt/cea /opt/cea
-COPY --from=cea /opt/cea/transponder/entrypoint.sh /entrypoint.sh
+COPY --from=transponder /opt/transponder /opt/transponder
+COPY --from=transponder /opt/transponder/transponder/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ```
 
@@ -89,32 +89,30 @@ For step-by-step integration into other service repos, see:
 
 - `instructions-to-add-transponder.md`
 
-## CEA environment variables
+## Transponder environment variables
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CEA_ENABLED` | `true` | Toggle CEA startup from launcher |
-| `CEA_NICE_LEVEL` | `10` | CPU niceness for CEA process |
-| `CEA_IONICE_CLASS` | `3` | I/O class (1=realtime, 2=best-effort, 3=idle) |
-| `CEA_IONICE_LEVEL` | `7` | I/O level used when class is `2` |
-| `CEA_TRANSPONDER_BIN` | `/opt/cea/.venv/bin/cea-transponder` | Transponder executable |
-| `CEA_TRANSPONDER_ARGS` | `` (empty) | Optional additional args |
-| `CEA_AGENT_BIN` | mirrors `CEA_TRANSPONDER_BIN` | Backward-compatible alias |
-| `CEA_AGENT_ARGS` | mirrors `CEA_TRANSPONDER_ARGS` | Backward-compatible alias |
+| `TRANSPONDER_ENABLED` | `true` | Toggle transponder startup from launcher |
+| `TRANSPONDER_NICE_LEVEL` | `10` | CPU niceness for transponder process |
+| `TRANSPONDER_IONICE_CLASS` | `3` | I/O class (1=realtime, 2=best-effort, 3=idle) |
+| `TRANSPONDER_IONICE_LEVEL` | `7` | I/O level used when class is `2` |
+| `TRANSPONDER_BIN` | `/opt/transponder/.venv/bin/transponder` | Transponder executable |
+| `TRANSPONDER_ARGS` | `` (empty) | Optional additional args |
 
 ## Example integration (service Dockerfile)
 
 ```dockerfile
-# pull CEA artifacts from dedicated image
-FROM ghcr.io/contrived-com/arecibo-transponder:prod AS cea
+# pull transponder artifacts from dedicated image
+FROM ghcr.io/contrived-com/arecibo-transponder:prod AS transponder
 
 FROM python:3.12-slim
 WORKDIR /app
 COPY . /app
 
 # copy transponder and canonical launcher
-COPY --from=cea /opt/cea /opt/cea
-COPY --from=cea /opt/cea/transponder/entrypoint.sh /entrypoint.sh
+COPY --from=transponder /opt/transponder /opt/transponder
+COPY --from=transponder /opt/transponder/transponder/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
@@ -125,9 +123,9 @@ CMD ["python", "server.py"]
 
 Service repos may:
 
-- invoke `python transponder/cea_transponder.py` directly in their own wrapper
+- invoke `python transponder/transponder.py` directly in their own wrapper
 - use a custom entrypoint script
-- disable CEA at runtime with `CEA_ENABLED=false`
+- disable transponder at runtime with `TRANSPONDER_ENABLED=false`
 
 The canonical launcher is the default path, not a hard requirement.
 

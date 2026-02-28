@@ -52,7 +52,7 @@ def sample_announce() -> dict:
         "eventId": "announce-0001",
         "sentAt": "2026-02-26T12:00:01Z",
         "identity": _sample_identity(),
-        "runtime": {"ceaPid": 42, "ceaVersion": "0.1.0", "pythonVersion": "3.12.0"},
+        "runtime": {"transponderPid": 42, "transponderVersion": "0.1.0", "pythonVersion": "3.12.0"},
     }
 
 
@@ -65,14 +65,14 @@ def sample_heartbeat() -> dict:
         "sentAt": "2026-02-26T12:01:00Z",
         "identity": _sample_identity(),
         "status": {
-            "agentUptimeSec": 60,
+            "transponderUptimeSec": 60,
             "maxEventQueueDepthSinceLastHeartbeat": 4,
             "eventsReceivedTotal": 10,
             "eventsSentTotal": 9,
             "eventsDroppedTotal": 1,
             "eventsDroppedByQueueSizeSinceLastHeartbeat": 1,
             "eventsDroppedByPolicySinceLastHeartbeat": 0,
-            "ceaRssBytes": 2048,
+            "transponderRssBytes": 2048,
             "goDark": False,
         },
     }
@@ -83,7 +83,7 @@ def sample_events_batch() -> dict:
     return {
         "schemaVersion": "1.0.0",
         "batchId": "batch-0001",
-        "agentSessionId": "session-1",
+        "transponderSessionId": "session-1",
         "sentAt": "2026-02-26T12:01:30Z",
         "events": [
             {

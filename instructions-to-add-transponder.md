@@ -1,6 +1,6 @@
 # Instructions To Add Transponder
 
-Use this playbook when integrating Arecibo CEA into another service repo (example target: `~/dev/divining-rod`).
+Use this playbook when integrating the Arecibo transponder into another service repo (example target: `~/dev/divining-rod`).
 
 ## TL;DR
 
@@ -14,7 +14,7 @@ The easiest pattern is to consume the prebuilt artifact image:
 
 - `ghcr.io/contrived-com/arecibo-transponder:prod`
 
-and copy `/opt/cea` into the target image.
+and copy `/opt/transponder` into the target image.
 
 ---
 
@@ -22,19 +22,19 @@ and copy `/opt/cea` into the target image.
 
 ## 1) Dockerfile changes (required)
 
-For each container that should run CEA (typically Python API/worker/scraper, not static web):
+For each container that should run the transponder (typically Python API/worker/scraper, not static web):
 
 1. Add a transponder artifact stage:
 
 ```dockerfile
-FROM ghcr.io/contrived-com/arecibo-transponder:prod AS cea
+FROM ghcr.io/contrived-com/arecibo-transponder:prod AS transponder
 ```
 
 2. Copy runtime + launcher into final stage:
 
 ```dockerfile
-COPY --from=cea /opt/cea /opt/cea
-COPY --from=cea /opt/cea/transponder/entrypoint.sh /entrypoint.sh
+COPY --from=transponder /opt/transponder /opt/transponder
+COPY --from=transponder /opt/transponder/transponder/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ```
 
@@ -53,11 +53,11 @@ Important:
 
 ## 2) Runtime env wiring (usually required)
 
-CEA needs collector endpoint and auth:
+The transponder needs collector endpoint and auth:
 
-- `CEA_COLLECTOR_URL` or `CEA_COLLECTOR_CANDIDATES`
-- `CEA_API_KEY`
-- identity hints like `CEA_SERVICE_NAME`, `CEA_ENVIRONMENT`, etc.
+- `TRANSPONDER_COLLECTOR_URL` or `TRANSPONDER_COLLECTOR_CANDIDATES`
+- `TRANSPONDER_API_KEY`
+- identity hints like `TRANSPONDER_SERVICE_NAME`, `TRANSPONDER_ENVIRONMENT`, etc.
 
 Current default collector candidates in transponder code are:
 - `http://arecibo-api:8080`
@@ -70,7 +70,7 @@ If the target service uses pointer-only `.env` (recommended), then:
 - `.env` should only contain Vault pointers/approle data (`VAULT_ADDR`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`).
 - App-level secret values should live in Vault and be fetched at runtime.
 
-For `CEA_API_KEY`, use the same strategy as other app secrets in that repo:
+For `TRANSPONDER_API_KEY`, use the same strategy as other app secrets in that repo:
 - fetch from Vault in startup/bootstrap logic, then export/inject to process env.
 
 Do **not** commit raw API keys.
@@ -83,7 +83,7 @@ If not already present:
 - join `concordia` network for Vault access
 - keep host bindings on `127.0.0.1`
 
-If CEA should prefer internal route to Arecibo API, ensure network path to `arecibo-api` is available (same host shared network or explicit route).
+If the transponder should prefer internal route to Arecibo API, ensure network path to `arecibo-api` is available (same host shared network or explicit route).
 
 ---
 
@@ -102,7 +102,7 @@ For `divining-rod`, current workflow already builds `api/Dockerfile`, `worker/Do
 
 ## 5) What to change in `divining-rod` specifically
 
-Recommended CEA-enabled containers:
+Recommended transponder-enabled containers:
 - `divining-rod-api`
 - `divining-rod-worker`
 - `divining-rod-scraper` (if long-running or event-emitting and useful)
@@ -112,8 +112,8 @@ Likely skip:
 
 Steps:
 1. Edit `api/Dockerfile`, `worker/Dockerfile`, and optionally `scraper/Dockerfile` with the `arecibo-transponder` copy + entrypoint pattern.
-2. Ensure compose env includes needed `CEA_*` vars for those services.
-3. Keep Vault pointer-only policy and fetch `CEA_API_KEY` via Vault runtime path.
+2. Ensure compose env includes needed `TRANSPONDER_*` vars for those services.
+3. Keep Vault pointer-only policy and fetch `TRANSPONDER_API_KEY` via Vault runtime path.
 4. Push, watch CI, verify containers healthy.
 
 ---
@@ -121,7 +121,7 @@ Steps:
 ## 6) Verification checklist
 
 Inside running container:
-- `/opt/cea/.venv/bin/cea-transponder` exists
+- `/opt/transponder/.venv/bin/transponder` exists
 - `/entrypoint.sh` exists and executable
 
 Runtime:
@@ -140,7 +140,7 @@ Quick checks:
 
 - Missing `ENTRYPOINT ["/entrypoint.sh"]` -> transponder never starts.
 - Overwriting CMD incorrectly -> app no longer PID 1.
-- Missing `CEA_API_KEY` -> announce/policy calls rejected.
+- Missing `TRANSPONDER_API_KEY` -> announce/policy calls rejected.
 - Wrong Vault address/network -> cannot fetch key.
 - Forcing localhost collector where unreachable -> connection failures.
 
@@ -152,7 +152,7 @@ Arecibo transponder artifact image:
 - `ghcr.io/contrived-com/arecibo-transponder:prod`
 
 Launcher defaults:
-- `CEA_TRANSPONDER_BIN=/opt/cea/.venv/bin/cea-transponder`
+- `TRANSPONDER_BIN=/opt/transponder/.venv/bin/transponder`
 
 Arecibo external endpoint:
 - `https://arecibo.contrived.com`

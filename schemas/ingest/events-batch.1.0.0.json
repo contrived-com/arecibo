@@ -5,7 +5,7 @@
   "required": [
     "schemaVersion",
     "batchId",
-    "agentSessionId",
+    "transponderSessionId",
     "sentAt",
     "events"
   ],
@@ -17,7 +17,7 @@
       "type": "string",
       "minLength": 1
     },
-    "agentSessionId": {
+    "transponderSessionId": {
       "type": "string",
       "minLength": 1
     },

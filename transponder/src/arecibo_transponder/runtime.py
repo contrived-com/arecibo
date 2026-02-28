@@ -16,7 +16,7 @@ from .utils import new_event_id, parse_json_line, setup_logging, utc_now
 logger = logging.getLogger(__name__)
 
 
-class CEARuntime:
+class TransponderRuntime:
     def __init__(self, config: TransponderConfig) -> None:
         self.config = config
         self.state = TransponderRuntimeState()
@@ -83,7 +83,7 @@ class CEARuntime:
             logger.warning("no collector candidates configured; transponder remains local-only")
             return
         if not self.config.api_key:
-            logger.warning("CEA_API_KEY missing; outbound API calls likely rejected")
+            logger.warning("TRANSPONDER_API_KEY missing; outbound API calls likely rejected")
 
         for candidate in self.config.collector_candidates:
             client = CollectorClient(candidate, self.config.api_key, self.config.probe_timeout_sec)
@@ -128,8 +128,8 @@ class CEARuntime:
             "sentAt": utc_now(),
             "identity": self._identity(),
             "runtime": {
-                "ceaPid": os.getpid(),
-                "ceaVersion": "0.1.0",
+                "transponderPid": os.getpid(),
+                "transponderVersion": "0.1.0",
                 "pythonVersion": ".".join(str(v) for v in os.sys.version_info[:3]),
             },
         }
@@ -147,7 +147,7 @@ class CEARuntime:
         status, body = client.policy(self.config.service_name, self.config.environment)
         if status == 200 and isinstance(body, dict):
             policy = body.get("policy", {})
-            self.state.policy.session_id = str(body.get("agentSessionId", ""))
+            self.state.policy.session_id = str(body.get("transponderSessionId", ""))
             self.state.policy.ttl_sec = int(body.get("ttlSec", self.state.policy.ttl_sec))
             self.state.policy.policy_version = str(policy.get("policyVersion", ""))
             self.state.policy.enabled = bool(policy.get("enabled", True))
@@ -179,14 +179,14 @@ class CEARuntime:
             "sentAt": utc_now(),
             "identity": self._identity(),
             "status": {
-                "agentUptimeSec": uptime,
+                "transponderUptimeSec": uptime,
                 "maxEventQueueDepthSinceLastHeartbeat": self.state.counters.max_event_queue_depth_since_last_heartbeat,
                 "eventsReceivedTotal": self.state.counters.events_received_total,
                 "eventsSentTotal": self.state.counters.events_sent_total,
                 "eventsDroppedTotal": self.state.counters.events_dropped_total,
                 "eventsDroppedByQueueSizeSinceLastHeartbeat": self.state.counters.events_dropped_by_queue_size_since_last_heartbeat,
                 "eventsDroppedByPolicySinceLastHeartbeat": self.state.counters.events_dropped_by_policy_since_last_heartbeat,
-                "ceaRssBytes": 0,
+                "transponderRssBytes": 0,
                 "goDark": self.state.go_dark,
                 "policyVersion": self.state.policy.policy_version,
             },
@@ -226,7 +226,7 @@ class CEARuntime:
         payload = {
             "schemaVersion": "1.0.0",
             "batchId": new_event_id("batch"),
-            "agentSessionId": self.state.policy.session_id,
+            "transponderSessionId": self.state.policy.session_id,
             "sentAt": utc_now(),
             "events": batch,
         }

@@ -3,7 +3,7 @@ def test_known_service_environment_returns_policy(client, auth_headers):
     assert response.status_code == 200
     body = response.json()
     assert body["schemaVersion"] == "1.0.0"
-    assert body["agentSessionId"]
+    assert body["transponderSessionId"]
     assert body["policy"]["serviceName"] == "demo-service"
     assert body["policy"]["environment"] == "local"
 

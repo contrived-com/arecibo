@@ -5,10 +5,10 @@ Reusable **arecibo** runtime for Contrived services.
 This repository uses an API-first workflow for Arecibo endpoints: define and agree on
 `openapi.yml` before implementing handlers.
 
-This project provides a canonical in-container companion agent pattern:
+This project provides a canonical in-container companion transponder pattern:
 
 - CEA runs in the background inside the app container.
-- App startup is never blocked by agent startup failures.
+- App startup is never blocked by transponder startup failures.
 - The app remains PID 1 (`exec "$@"` behavior in launcher), referred to as the **primary application process**.
 - Integration works across heterogeneous Dockerfiles (no shared base required).
 
@@ -24,7 +24,7 @@ This project provides a canonical in-container companion agent pattern:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python agent/cea_agent.py
+python transponder/cea_transponder.py
 ```
 
 ## API service
@@ -44,7 +44,7 @@ This repository includes production-facing artifacts used by homelab update auto
 - `Dockerfile` builds the `arecibo-api` container image.
 - `docker-compose.yml` defines the `arecibo-api` service for host deployment.
 - `.github/workflows/build_and_push.yml` builds and publishes `ghcr.io/contrived-com/arecibo` (`prod` and `latest` on `main`).
-- `.github/workflows/build_and_push.yml` also builds `ghcr.io/contrived-com/arecibo-agent` as a reusable agent artifact image.
+- `.github/workflows/build_and_push.yml` also builds `ghcr.io/contrived-com/arecibo-transponder` as a reusable transponder artifact image.
 - `.env.example` documents pointer-only runtime env configuration for deploy environments.
 - `terraform/vault/` defines app-level secrets and AppRole policy for runtime Vault fetch.
 
@@ -58,7 +58,7 @@ Production runtime follows the Vault-first pattern:
 
 ## Canonical launcher
 
-Use `agent/entrypoint.sh` as the default service entrypoint wrapper.
+Use `transponder/entrypoint.sh` as the default service entrypoint wrapper.
 
 It:
 
@@ -67,23 +67,27 @@ It:
 3. Never blocks app startup.
 4. `exec`s your app command so app remains PID 1.
 
-## Agent artifact and locking
+## Transponder artifact and locking
 
-The agent runtime is packaged in `agent/` and built as an atomic artifact image (`ghcr.io/contrived-com/arecibo-agent`):
+The transponder runtime is packaged in `transponder/` and built as an atomic artifact image (`ghcr.io/contrived-com/arecibo-transponder`):
 
-- `agent/pyproject.toml` defines the package and CLI entrypoint.
-- `Dockerfile.agent` builds a locked virtualenv under `/opt/cea/.venv`.
-- Services can copy agent runtime directly:
+- `transponder/pyproject.toml` defines the package and CLI entrypoint.
+- `Dockerfile.transponder` builds a locked virtualenv under `/opt/cea/.venv`.
+- Services can copy transponder runtime directly:
 
 ```dockerfile
-FROM ghcr.io/contrived-com/arecibo-agent:prod AS cea
+FROM ghcr.io/contrived-com/arecibo-transponder:prod AS cea
 
 COPY --from=cea /opt/cea /opt/cea
-COPY --from=cea /opt/cea/agent/entrypoint.sh /entrypoint.sh
+COPY --from=cea /opt/cea/transponder/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ```
 
 This avoids runtime dependency installation in downstream service images.
+
+For step-by-step integration into other service repos, see:
+
+- `instructions-to-add-transponder.md`
 
 ## CEA environment variables
 
@@ -93,22 +97,24 @@ This avoids runtime dependency installation in downstream service images.
 | `CEA_NICE_LEVEL` | `10` | CPU niceness for CEA process |
 | `CEA_IONICE_CLASS` | `3` | I/O class (1=realtime, 2=best-effort, 3=idle) |
 | `CEA_IONICE_LEVEL` | `7` | I/O level used when class is `2` |
-| `CEA_AGENT_BIN` | `/opt/cea/.venv/bin/cea-agent` | Agent executable |
-| `CEA_AGENT_ARGS` | `` (empty) | Optional additional args |
+| `CEA_TRANSPONDER_BIN` | `/opt/cea/.venv/bin/cea-transponder` | Transponder executable |
+| `CEA_TRANSPONDER_ARGS` | `` (empty) | Optional additional args |
+| `CEA_AGENT_BIN` | mirrors `CEA_TRANSPONDER_BIN` | Backward-compatible alias |
+| `CEA_AGENT_ARGS` | mirrors `CEA_TRANSPONDER_ARGS` | Backward-compatible alias |
 
 ## Example integration (service Dockerfile)
 
 ```dockerfile
 # pull CEA artifacts from dedicated image
-FROM ghcr.io/contrived-com/arecibo-agent:prod AS cea
+FROM ghcr.io/contrived-com/arecibo-transponder:prod AS cea
 
 FROM python:3.12-slim
 WORKDIR /app
 COPY . /app
 
-# copy agent and canonical launcher
+# copy transponder and canonical launcher
 COPY --from=cea /opt/cea /opt/cea
-COPY --from=cea /opt/cea/agent/entrypoint.sh /entrypoint.sh
+COPY --from=cea /opt/cea/transponder/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
@@ -119,7 +125,7 @@ CMD ["python", "server.py"]
 
 Service repos may:
 
-- invoke `python agent/cea_agent.py` directly in their own wrapper
+- invoke `python transponder/cea_transponder.py` directly in their own wrapper
 - use a custom entrypoint script
 - disable CEA at runtime with `CEA_ENABLED=false`
 

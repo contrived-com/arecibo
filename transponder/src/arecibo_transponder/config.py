@@ -23,7 +23,7 @@ def _int(name: str, default: int, minimum: int = 0) -> int:
 
 
 @dataclass(frozen=True)
-class AgentConfig:
+class TransponderConfig:
     api_key: str
     collector_candidates: list[str]
     probe_timeout_sec: float
@@ -49,7 +49,7 @@ class AgentConfig:
     ingest_socket_buffer_bytes: int
 
     @classmethod
-    def from_env(cls, startup_ts: str) -> "AgentConfig":
+    def from_env(cls, startup_ts: str) -> "TransponderConfig":
         collector_candidates_raw = os.getenv(
             "CEA_COLLECTOR_CANDIDATES",
             "http://arecibo-api:8080,https://arecibo.contrived.com",

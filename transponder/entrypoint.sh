@@ -2,7 +2,7 @@
 set -eu
 
 # Canonical CEA launcher.
-# - Starts the embedded agent as a best-effort background companion.
+# - Starts the embedded transponder as a best-effort background companion.
 # - Never blocks app startup.
 # - Always execs the app command so app remains PID 1.
 
@@ -14,8 +14,11 @@ start_cea() {
   CEA_NICE_LEVEL="${CEA_NICE_LEVEL:-10}"
   CEA_IONICE_CLASS="${CEA_IONICE_CLASS:-3}"
   CEA_IONICE_LEVEL="${CEA_IONICE_LEVEL:-7}"
-  CEA_AGENT_BIN="${CEA_AGENT_BIN:-/opt/cea/.venv/bin/cea-agent}"
-  CEA_AGENT_ARGS="${CEA_AGENT_ARGS:-}"
+  CEA_TRANSPONDER_BIN="${CEA_TRANSPONDER_BIN:-/opt/cea/.venv/bin/cea-transponder}"
+  # Backward compatibility for older environment names.
+  CEA_AGENT_BIN="${CEA_AGENT_BIN:-$CEA_TRANSPONDER_BIN}"
+  CEA_TRANSPONDER_ARGS="${CEA_TRANSPONDER_ARGS:-}"
+  CEA_AGENT_ARGS="${CEA_AGENT_ARGS:-$CEA_TRANSPONDER_ARGS}"
 
   # shellcheck disable=SC2086
   if command -v ionice >/dev/null 2>&1; then

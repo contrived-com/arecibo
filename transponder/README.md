@@ -1,6 +1,6 @@
-# Arecibo Agent Package
+# Arecibo Transponder Package
 
-This directory defines a reproducible Python package for the CEA runtime.
+This directory defines a reproducible Python package for the CEA runtime transponder.
 
 ## Goals
 
@@ -17,10 +17,10 @@ This directory defines a reproducible Python package for the CEA runtime.
 ## Local workflow
 
 ```bash
-cd agent
+cd transponder
 uv lock
 uv sync --locked
-uv run cea-agent
+uv run cea-transponder
 ```
 
 ## Runtime behavior

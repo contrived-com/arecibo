@@ -1,10 +1,10 @@
-# Instructions To Add Agent
+# Instructions To Add Transponder
 
 Use this playbook when integrating Arecibo CEA into another service repo (example target: `~/dev/divining-rod`).
 
 ## TL;DR
 
-Adding the agent is **not** build-action-only.
+Adding the transponder is **not** build-action-only.
 
 - You usually **must** update one or more Dockerfiles.
 - You may need compose/env wiring updates.
@@ -12,7 +12,7 @@ Adding the agent is **not** build-action-only.
 
 The easiest pattern is to consume the prebuilt artifact image:
 
-- `ghcr.io/contrived-com/arecibo-agent:prod`
+- `ghcr.io/contrived-com/arecibo-transponder:prod`
 
 and copy `/opt/cea` into the target image.
 
@@ -24,17 +24,17 @@ and copy `/opt/cea` into the target image.
 
 For each container that should run CEA (typically Python API/worker/scraper, not static web):
 
-1. Add an agent artifact stage:
+1. Add a transponder artifact stage:
 
 ```dockerfile
-FROM ghcr.io/contrived-com/arecibo-agent:prod AS cea
+FROM ghcr.io/contrived-com/arecibo-transponder:prod AS cea
 ```
 
 2. Copy runtime + launcher into final stage:
 
 ```dockerfile
 COPY --from=cea /opt/cea /opt/cea
-COPY --from=cea /opt/cea/agent/entrypoint.sh /entrypoint.sh
+COPY --from=cea /opt/cea/transponder/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ```
 
@@ -47,7 +47,7 @@ CMD ["python", "-m", "src.main"]
 
 Important:
 - Keep the app command as `CMD` so it remains the primary application process (PID 1).
-- Do not replace CMD with the agent command.
+- Do not replace CMD with the transponder command.
 
 ---
 
@@ -59,7 +59,7 @@ CEA needs collector endpoint and auth:
 - `CEA_API_KEY`
 - identity hints like `CEA_SERVICE_NAME`, `CEA_ENVIRONMENT`, etc.
 
-Current default collector candidates in agent code are:
+Current default collector candidates in transponder code are:
 - `http://arecibo-api:8080`
 - `https://arecibo.contrived.com`
 
@@ -111,7 +111,7 @@ Likely skip:
 - `divining-rod-web` (Node web frontend) unless there is a clear reason.
 
 Steps:
-1. Edit `api/Dockerfile`, `worker/Dockerfile`, and optionally `scraper/Dockerfile` with the `arecibo-agent` copy + entrypoint pattern.
+1. Edit `api/Dockerfile`, `worker/Dockerfile`, and optionally `scraper/Dockerfile` with the `arecibo-transponder` copy + entrypoint pattern.
 2. Ensure compose env includes needed `CEA_*` vars for those services.
 3. Keep Vault pointer-only policy and fetch `CEA_API_KEY` via Vault runtime path.
 4. Push, watch CI, verify containers healthy.
@@ -121,12 +121,12 @@ Steps:
 ## 6) Verification checklist
 
 Inside running container:
-- `/opt/cea/.venv/bin/cea-agent` exists
+- `/opt/cea/.venv/bin/cea-transponder` exists
 - `/entrypoint.sh` exists and executable
 
 Runtime:
 - app process is still healthy
-- agent process is running (child/background)
+- transponder process is running (child/background)
 - Arecibo API shows announce/heartbeat traffic
 
 Quick checks:
@@ -138,7 +138,7 @@ Quick checks:
 
 ## 7) Common failure modes
 
-- Missing `ENTRYPOINT ["/entrypoint.sh"]` -> agent never starts.
+- Missing `ENTRYPOINT ["/entrypoint.sh"]` -> transponder never starts.
 - Overwriting CMD incorrectly -> app no longer PID 1.
 - Missing `CEA_API_KEY` -> announce/policy calls rejected.
 - Wrong Vault address/network -> cannot fetch key.
@@ -148,11 +148,11 @@ Quick checks:
 
 ## 8) Reference contract
 
-Arecibo agent artifact image:
-- `ghcr.io/contrived-com/arecibo-agent:prod`
+Arecibo transponder artifact image:
+- `ghcr.io/contrived-com/arecibo-transponder:prod`
 
 Launcher defaults:
-- `CEA_AGENT_BIN=/opt/cea/.venv/bin/cea-agent`
+- `CEA_TRANSPONDER_BIN=/opt/cea/.venv/bin/cea-transponder`
 
 Arecibo external endpoint:
 - `https://arecibo.contrived.com`

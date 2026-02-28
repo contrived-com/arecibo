@@ -7,7 +7,7 @@ import threading
 from collections import deque
 from typing import Any
 
-from .model import AgentCounters
+from .model import TransponderCounters
 from .utils import utc_now
 
 
@@ -17,7 +17,7 @@ class IngestQueue:
         self._items: deque[dict[str, Any]] = deque()
         self._lock = threading.Lock()
 
-    def push(self, item: dict[str, Any], counters: AgentCounters) -> None:
+    def push(self, item: dict[str, Any], counters: TransponderCounters) -> None:
         with self._lock:
             if len(self._items) >= self.max_depth:
                 self._items.popleft()
@@ -40,7 +40,13 @@ class IngestQueue:
 
 
 class IngestDatagramServer:
-    def __init__(self, socket_path: str, buffer_bytes: int, queue: IngestQueue, counters: AgentCounters):
+    def __init__(
+        self,
+        socket_path: str,
+        buffer_bytes: int,
+        queue: IngestQueue,
+        counters: TransponderCounters,
+    ):
         self.socket_path = socket_path
         self.buffer_bytes = buffer_bytes
         self.queue = queue

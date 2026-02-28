@@ -1,1 +1,0 @@
-"""Arecibo CEA runtime package."""

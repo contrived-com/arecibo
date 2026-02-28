@@ -7,9 +7,9 @@ import time
 from typing import Any
 
 from .client import CollectorClient
-from .config import AgentConfig
+from .config import TransponderConfig
 from .ingest import IngestDatagramServer, IngestQueue
-from .model import AgentRuntimeState, Directive
+from .model import Directive, TransponderRuntimeState
 from .utils import new_event_id, parse_json_line, setup_logging, utc_now
 
 
@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 class CEARuntime:
-    def __init__(self, config: AgentConfig) -> None:
+    def __init__(self, config: TransponderConfig) -> None:
         self.config = config
-        self.state = AgentRuntimeState()
+        self.state = TransponderRuntimeState()
         self.started_monotonic = time.monotonic()
         self.queue = IngestQueue(max_depth=config.queue_max_depth)
         self.ingest_server: IngestDatagramServer | None = None
@@ -50,7 +50,8 @@ class CEARuntime:
         next_heartbeat_at = time.monotonic()
         next_flush_at = time.monotonic() + self.config.events_flush_interval_sec
         next_policy_refresh_at = time.monotonic() + max(
-            self.config.heartbeat_min_interval_sec, self.state.policy.ttl_sec - self.config.policy_refresh_jitter_sec
+            self.config.heartbeat_min_interval_sec,
+            self.state.policy.ttl_sec - self.config.policy_refresh_jitter_sec,
         )
 
         while not self._stop:
@@ -79,7 +80,7 @@ class CEARuntime:
 
     def _bootstrap(self) -> None:
         if not self.config.collector_candidates:
-            logger.warning("no collector candidates configured; agent remains local-only")
+            logger.warning("no collector candidates configured; transponder remains local-only")
             return
         if not self.config.api_key:
             logger.warning("CEA_API_KEY missing; outbound API calls likely rejected")
@@ -94,7 +95,7 @@ class CEARuntime:
             break
 
         if not self.state.selected_collector:
-            logger.warning("collector probe failed; agent will retry opportunistically")
+            logger.warning("collector probe failed; transponder will retry opportunistically")
             return
 
         self._announce()

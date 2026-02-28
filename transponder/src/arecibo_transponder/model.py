@@ -22,7 +22,7 @@ class PolicyState:
 
 
 @dataclass
-class AgentCounters:
+class TransponderCounters:
     events_received_total: int = 0
     events_sent_total: int = 0
     events_dropped_total: int = 0
@@ -37,9 +37,9 @@ class AgentCounters:
 
 
 @dataclass
-class AgentRuntimeState:
+class TransponderRuntimeState:
     go_dark: bool = False
     selected_collector: str = ""
     request_seq: int = 0
     policy: PolicyState = field(default_factory=PolicyState)
-    counters: AgentCounters = field(default_factory=AgentCounters)
+    counters: TransponderCounters = field(default_factory=TransponderCounters)

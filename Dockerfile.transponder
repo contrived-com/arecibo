@@ -8,9 +8,9 @@ WORKDIR /work
 
 RUN pip install --no-cache-dir "uv==${UV_VERSION}"
 
-COPY agent /work/agent
+COPY transponder /work/transponder
 
-WORKDIR /work/agent
+WORKDIR /work/transponder
 RUN uv lock
 RUN uv build --wheel
 RUN uv venv /opt/cea/.venv
@@ -22,7 +22,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 COPY --from=builder /opt/cea /opt/cea
-COPY --from=builder /work/agent/cea_agent.py /opt/cea/agent/cea_agent.py
-COPY --from=builder /work/agent/entrypoint.sh /opt/cea/agent/entrypoint.sh
+COPY --from=builder /work/transponder/cea_transponder.py /opt/cea/transponder/cea_transponder.py
+COPY --from=builder /work/transponder/entrypoint.sh /opt/cea/transponder/entrypoint.sh
 
-RUN chmod +x /opt/cea/agent/entrypoint.sh
+RUN chmod +x /opt/cea/transponder/entrypoint.sh

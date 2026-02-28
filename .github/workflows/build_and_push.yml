@@ -16,7 +16,7 @@ on:
 env:
   REGISTRY: ghcr.io
   API_IMAGE_NAME: contrived-com/arecibo
-  AGENT_IMAGE_NAME: contrived-com/arecibo-agent
+  TRANSPONDER_IMAGE_NAME: contrived-com/arecibo-transponder
 
 jobs:
   build-and-push-api:
@@ -63,7 +63,7 @@ jobs:
           build-args: |
             GIT_COMMIT=${{ github.sha }}
 
-  build-and-push-agent:
+  build-and-push-transponder:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: read
@@ -88,7 +88,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.AGENT_IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.TRANSPONDER_IMAGE_NAME }}
           tags: |
             type=raw,value=prod,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
@@ -99,7 +99,7 @@ jobs:
         uses: useblacksmith/build-push-action@v2
         with:
           context: .
-          file: Dockerfile.agent
+          file: Dockerfile.transponder
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

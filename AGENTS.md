@@ -2,8 +2,8 @@
 
 ## Purpose
 
-This repository defines the reusable **embedded-agent** pattern for Contrived services.
-The agent runs **inside** each app container as a background companion process (not a sidecar).
+This repository defines the reusable **embedded-transponder** pattern for Contrived services.
+The transponder runs **inside** each app container as a background companion process (not a sidecar).
 
 Primary objective: make fleet observability low-friction and low-maintenance so adoption is "it just works".
 
@@ -15,13 +15,13 @@ Primary objective: make fleet observability low-friction and low-maintenance so 
 
 ## Canonical Runtime Contract
 
-- Canonical launcher is `agent/entrypoint.sh`.
+- Canonical launcher is `transponder/entrypoint.sh`.
 - Services may copy this script and use it as `ENTRYPOINT`.
 - Script starts CEA in the background with lower scheduling priority, then `exec "$@"`.
 - The app command remains PID 1 and is called the **primary application process**.
-- Agent startup failure must never block app startup.
-- Agent package is defined in `agent/pyproject.toml` and built as a locked artifact image (`ghcr.io/contrived-com/arecibo-agent`).
-- Downstream services should consume `/opt/cea` via `COPY --from=...` instead of installing agent dependencies at runtime.
+- Transponder startup failure must never block app startup.
+- Transponder package is defined in `transponder/pyproject.toml` and built as a locked artifact image (`ghcr.io/contrived-com/arecibo-transponder`).
+- Downstream services should consume `/opt/cea` via `COPY --from=...` instead of installing transponder dependencies at runtime.
 
 ## Time Standard
 
@@ -32,7 +32,7 @@ Primary objective: make fleet observability low-friction and low-maintenance so 
 ## Naming
 
 - Use `CEA_*` env vars (not `EA_*`).
-- Pattern name: `embedded-agent`.
+- Pattern name: `embedded-transponder`.
 - Do not call this sidecar or Docker-in-Docker.
 
 ## Integration Philosophy
@@ -80,7 +80,7 @@ Primary objective: make fleet observability low-friction and low-maintenance so 
 ## Repo Boundaries
 
 - This repo owns:
-  - embedded agent code
+  - embedded transponder code
   - canonical launcher script
   - shared schemas under `schemas/`
   - shared env var/config contract

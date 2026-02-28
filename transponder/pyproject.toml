@@ -1,7 +1,7 @@
 [project]
-name = "arecibo-agent"
+name = "arecibo-transponder"
 version = "0.1.0"
-description = "Contrived Embedded Agent runtime component."
+description = "Contrived Embedded Transponder runtime component."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
@@ -12,11 +12,11 @@ dev = [
 ]
 
 [project.scripts]
-cea-agent = "arecibo_agent.main:main"
+cea-transponder = "arecibo_transponder.main:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/arecibo_agent"]
+packages = ["src/arecibo_transponder"]

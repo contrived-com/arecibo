@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from arecibo_agent.config import AgentConfig
-from arecibo_agent.runtime import CEARuntime
+from arecibo_transponder.config import TransponderConfig
+from arecibo_transponder.runtime import CEARuntime
 
 
 class FakeClient:
@@ -39,8 +39,8 @@ class FakeClient:
         return 202, {"result": {"status": "ok", "requestId": "r-3"}}
 
 
-def _config() -> AgentConfig:
-    return AgentConfig(
+def _config() -> TransponderConfig:
+    return TransponderConfig(
         api_key="test-key",
         collector_candidates=["http://collector:8080"],
         probe_timeout_sec=0.1,
@@ -72,7 +72,7 @@ def test_bootstrap_sets_selected_collector_and_policy(monkeypatch):
     def _bootstrap_client(_base, _api, _timeout):
         return fake
 
-    monkeypatch.setattr("arecibo_agent.runtime.CollectorClient", _bootstrap_client)
+    monkeypatch.setattr("arecibo_transponder.runtime.CollectorClient", _bootstrap_client)
 
     runtime._bootstrap()
 

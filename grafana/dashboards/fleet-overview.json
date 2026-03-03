@@ -182,6 +182,65 @@
           ]
         }
       ]
+    },
+    {
+      "id": 4,
+      "title": "Earshot Container Heartbeats",
+      "type": "table",
+      "description": "Latest heartbeat status across Earshot environments/containers.",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 28 },
+      "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "url": "/query/heartbeat-freshness",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              { "key": "start", "value": "${__from:date:iso}" },
+              { "key": "end", "value": "${__to:date:iso}" },
+              { "key": "serviceName", "value": "earshot" },
+              { "key": "environment", "value": "${environment}" },
+              { "key": "maxRows", "value": "1000" }
+            ],
+            "headers": [
+              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
+            ]
+          },
+          "root_selector": "data",
+          "columns": [
+            { "selector": "environment", "text": "Container", "type": "string" },
+            { "selector": "instanceId", "text": "Instance", "type": "string" },
+            { "selector": "lastHeartbeatAt", "text": "Last Heartbeat", "type": "timestamp" },
+            { "selector": "staleSec", "text": "Stale (sec)", "type": "number" },
+            { "selector": "status", "text": "Status", "type": "string" }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-text" }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "fresh": { "color": "green", "text": "Fresh" } } },
+                  { "type": "value", "options": { "stale": { "color": "yellow", "text": "Stale" } } },
+                  { "type": "value", "options": { "offline": { "color": "red", "text": "Offline" } } }
+                ]
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

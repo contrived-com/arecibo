@@ -11,6 +11,13 @@ info:
     - Transponder sends heartbeat.
     - Transponder sends policy-filtered event batches.
 
+    Observability query endpoints:
+    - Fleet health summary.
+    - Heartbeat freshness by service/environment/instance.
+    - Event throughput time series.
+    - GO_DARK status visibility.
+    - Recent event inspection with pagination.
+
     Time standard:
     - All timestamps are RFC 3339 UTC with trailing "Z".
     - Localization occurs in upstream consumers.
@@ -25,6 +32,8 @@ tags:
   - name: system
   - name: ingest
   - name: policy
+  - name: observability
+    description: Query endpoints for Grafana datasource consumption and fleet visibility.
 
 security:
   - ApiKeyAuth: []
@@ -275,6 +284,186 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /query/fleet-health:
+    get:
+      tags: [observability]
+      summary: Fleet health summary
+      operationId: getFleetHealth
+      description: |
+        Returns aggregated health status for known services within the time range.
+        Each row represents a unique service/environment combination with instance
+        count, last-seen timestamps, and a derived health status.
+      parameters:
+        - $ref: "#/components/parameters/QueryStart"
+        - $ref: "#/components/parameters/QueryEnd"
+        - $ref: "#/components/parameters/FilterServiceName"
+        - $ref: "#/components/parameters/FilterEnvironment"
+        - $ref: "#/components/parameters/MaxRows"
+      responses:
+        "200":
+          description: Fleet health data
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/query/fleet-health.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /query/heartbeat-freshness:
+    get:
+      tags: [observability]
+      summary: Heartbeat freshness by instance
+      operationId: getHeartbeatFreshness
+      description: |
+        Returns heartbeat recency for each service/environment/instance combination.
+        Includes staleness calculation (seconds since last heartbeat) and a derived
+        freshness status based on the staleness threshold.
+      parameters:
+        - $ref: "#/components/parameters/QueryStart"
+        - $ref: "#/components/parameters/QueryEnd"
+        - $ref: "#/components/parameters/FilterServiceName"
+        - $ref: "#/components/parameters/FilterEnvironment"
+        - $ref: "#/components/parameters/MaxRows"
+        - $ref: "#/components/parameters/Cursor"
+        - name: stalenessThresholdSec
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 300
+          description: |
+            Seconds after which a heartbeat is considered stale. Default 300 (5 min).
+            Instances with no heartbeat within this threshold are marked "stale";
+            instances with no heartbeat within 3x this threshold are marked "offline".
+      responses:
+        "200":
+          description: Heartbeat freshness data
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/query/heartbeat-freshness.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /query/event-throughput:
+    get:
+      tags: [observability]
+      summary: Event throughput time series
+      operationId: getEventThroughput
+      description: |
+        Returns time-bucketed event counts for time series visualization.
+        Each data point represents the count of events within a time bucket.
+        Optionally grouped by service and/or environment dimensions.
+      parameters:
+        - $ref: "#/components/parameters/QueryStart"
+        - $ref: "#/components/parameters/QueryEnd"
+        - $ref: "#/components/parameters/FilterServiceName"
+        - $ref: "#/components/parameters/FilterEnvironment"
+        - $ref: "#/components/parameters/MaxRows"
+        - name: bucketWidthSec
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 10
+            maximum: 86400
+            default: 60
+          description: |
+            Width of each time bucket in seconds. Default 60 (1 min).
+            Minimum 10 seconds, maximum 86400 (24 hours).
+      responses:
+        "200":
+          description: Event throughput time series
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/query/event-throughput.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /query/go-dark-status:
+    get:
+      tags: [observability]
+      summary: GO_DARK directive status per instance
+      operationId: getGoDarkStatus
+      description: |
+        Returns the most recently reported GO_DARK state for each
+        service/environment/instance. Derived from heartbeat payloads
+        which include the goDark boolean flag.
+      parameters:
+        - $ref: "#/components/parameters/FilterServiceName"
+        - $ref: "#/components/parameters/FilterEnvironment"
+        - $ref: "#/components/parameters/MaxRows"
+      responses:
+        "200":
+          description: GO_DARK status data
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/query/go-dark-status.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /query/recent-events:
+    get:
+      tags: [observability]
+      summary: Recent events with pagination
+      operationId: getRecentEvents
+      description: |
+        Returns recent events with redaction-safe field projection.
+        Event payloads are excluded from the response to prevent leaking
+        sensitive data; only metadata fields (ts, type, severity, tags,
+        service context) are returned. Use pagination cursor for large
+        result sets.
+      parameters:
+        - $ref: "#/components/parameters/QueryStart"
+        - $ref: "#/components/parameters/QueryEnd"
+        - $ref: "#/components/parameters/FilterServiceName"
+        - $ref: "#/components/parameters/FilterEnvironment"
+        - $ref: "#/components/parameters/Cursor"
+        - name: maxRows
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+            default: 100
+          description: Maximum number of events to return. Default 100, max 10000.
+        - name: severity
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [debug, info, warn, error]
+          description: Filter events by severity level.
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter events by event type string.
+      responses:
+        "200":
+          description: Recent events
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/query/recent-events.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -282,6 +471,59 @@ components:
       in: header
       name: X-API-Key
       description: Per-service scoped API key for transponder authentication.
+
+  parameters:
+    QueryStart:
+      name: start
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: |
+        Start of time range (RFC 3339 UTC with trailing Z).
+        Default: 1 hour before current time.
+    QueryEnd:
+      name: end
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: |
+        End of time range (RFC 3339 UTC with trailing Z).
+        Default: current time.
+    FilterServiceName:
+      name: serviceName
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter results to a specific service name.
+    FilterEnvironment:
+      name: environment
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter results to a specific environment.
+    MaxRows:
+      name: maxRows
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 10000
+        default: 1000
+      description: Maximum number of rows to return. Default 1000, max 10000.
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Opaque pagination cursor from a previous response.
 
   responses:
     Unauthorized:

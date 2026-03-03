@@ -119,7 +119,7 @@
       ],
       "description": "Following the API-first requirement, extend openapi.yml with query endpoints designed for Grafana datasource consumption. Add endpoints: GET /query/fleet-health (summary of known services, last-seen, status), GET /query/heartbeat-freshness (heartbeat recency by service/environment/instance with staleness thresholds), GET /query/event-throughput (time-bucketed event counts for time series panels), GET /query/go-dark-status (current GO_DARK directive state per service), GET /query/recent-events (paginated recent events with redaction-safe field projection). Define query parameter contracts: time range (start/end as RFC3339, default last 1h), maxRows (default 1000, max 10000), pagination cursor. Create corresponding JSON schemas under schemas/query/ for each response payload. Keep schemas versioned (1.0.0).",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Blocks arecibo-00012 (query endpoint implementation). This is API-first work that must be reviewed before implementation begins. Query endpoints use GET with query parameters, not POST, to align with Grafana JSON datasource plugin conventions. All response schemas should reference the existing api/result.1.0.0.json wrapper pattern where appropriate."
     },
     {
@@ -134,7 +134,7 @@
       ],
       "description": "Create api/src/telemetry_store.py (or similar) implementing a TelemetryStore class that writes ingest payloads to the local filesystem under ./data/telemetry/. Directory layout: data/telemetry/{date}/{service}/{environment}/ with one JSONL file per payload type (announce.jsonl, heartbeat.jsonl, events.jsonl). Each line is a JSON object with the original payload plus a receivedAt timestamp. Use append mode writes with filesystem-level atomicity (write to temp, rename, or use append-only semantics). Wire into app.py lifespan to initialize the store, and call it from announce, heartbeat, and events:batch handlers after validation succeeds. Writes must not block the response path on failure (log and continue). Create the data/telemetry/.gitkeep to establish directory in repo.",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Blocks arecibo-00011 (retention) and arecibo-00012 (query endpoints need data to read). Can be developed in parallel with arecibo-00009 since storage concerns are independent of query API design. The partition layout directly affects query performance and retention pruning granularity."
     },
     {
@@ -149,7 +149,7 @@
       ],
       "description": "Create api/src/telemetry_retention.py implementing retention logic that walks the date-partitioned directories under ./data/telemetry/, identifies partitions older than 180 days based on directory name, and removes them. Log each pruned partition and summary counts at INFO level. Handle edge cases: partially written partitions, permission errors (log and skip), empty parent directories after pruning. Wire into app.py lifespan to run retention on startup (non-blocking background task). Optionally support a configurable retention period via ARECIBO_RETENTION_DAYS env var (default 180). Include a dry-run mode for operational safety.",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on arecibo-00010 (needs the storage layout to exist). Retention walks the date dimension of the partition tree, so the directory naming convention from arecibo-00010 must be stable. Consider running retention as an asyncio background task that yields to avoid blocking the event loop."
     },
     {
@@ -194,8 +194,8 @@
       ],
       "description": "In ~/dev/contrived-site/src/server.ts, add 'arecibo' to APP_REGISTRY with role definitions: none (no access, card locked), viewer (dashboard view only), admin (dashboard view plus Grafana edit/save permissions). Extend the user access computation logic (where session payload is built) to resolve the user's Arecibo access level from Stytch RBAC claims. The access level should be included in the user payload sent to the client so the dashboard can render the appropriate card state. Follow the same pattern used by existing apps in the registry.",
       "priority": 1,
-      "passes": false,
-      "notes": "Independent of arecibo repo tasks; can be developed in parallel with arecibo-00009 and arecibo-00010. Blocks arecibo-00015 (card/launcher needs registry entry) and arecibo-00016 (proxy needs access levels). Must follow existing contrived-site patterns for APP_REGISTRY structure and Stytch integration."
+      "passes": true,
+      "notes": "Independent of arecibo repo tasks; can be developed in parallel with arecibo-00009 and arecibo-00010. Blocks arecibo-00015 (card/launcher needs registry entry) and arecibo-00016 (proxy needs access levels). Must follow existing contrived-site patterns for APP_REGISTRY structure and Stytch integration. Already implemented in contrived-site."
     },
     {
       "id": "arecibo-00015",

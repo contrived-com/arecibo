@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sys
@@ -13,6 +14,8 @@ from .config import Settings
 from .logging_json import configure_logging
 from .policy_store import PolicyStore
 from .schemas import schema_registry
+from .telemetry_retention import get_retention_days, run_retention
+from .telemetry_store import TelemetryStore
 
 
 logger = logging.getLogger("arecibo.api")
@@ -86,6 +89,14 @@ def create_app() -> FastAPI:
         app.state.policy_store = PolicyStore(
             settings.policy_ttl_sec,
             settings.policy_root_dir,
+        )
+        telemetry_dir = os.path.join(os.path.dirname(API_DIR), "data", "telemetry")
+        app.state.telemetry_store = TelemetryStore(telemetry_dir)
+        # Run retention in background so it doesn't block startup
+        retention_days = get_retention_days()
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(
+            None, lambda: run_retention(telemetry_dir, retention_days=retention_days),
         )
         yield
 
@@ -171,6 +182,7 @@ def create_app() -> FastAPI:
                 }
             },
         )
+        app.state.telemetry_store.store_announce(payload)
         response_payload = _result(request.state.request_id, status_value="ok")
         _validated_response_or_500("result", response_payload)
         return response_payload
@@ -349,6 +361,7 @@ def create_app() -> FastAPI:
             },
         )
 
+        app.state.telemetry_store.store_heartbeat(payload)
         directives = _go_dark_directives_if_enabled(app.state.settings, "heartbeat")
         response_payload = _result(
             request.state.request_id,
@@ -392,6 +405,7 @@ def create_app() -> FastAPI:
             },
         )
 
+        app.state.telemetry_store.store_events_batch(payload)
         directives = _go_dark_directives_if_enabled(app.state.settings, "events")
         response_payload = _result(
             request.state.request_id,

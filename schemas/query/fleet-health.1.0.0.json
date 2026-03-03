@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arecibo/schemas/query/fleet-health/1.0.0",
+  "type": "object",
+  "required": ["data", "meta"],
+  "properties": {
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["serviceName", "environment", "instanceCount", "lastAnnouncedAt", "lastHeartbeatAt", "status"],
+        "properties": {
+          "serviceName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "environment": {
+            "type": "string"
+          },
+          "instanceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastAnnouncedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "pattern": "Z$"
+          },
+          "lastHeartbeatAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "pattern": "Z$"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["healthy", "stale", "offline"]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["totalRows", "start", "end"],
+      "properties": {
+        "totalRows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "start": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

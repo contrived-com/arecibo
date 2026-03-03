@@ -18,6 +18,12 @@ Each entry documents what was implemented and lessons learned.
 - Dockerfile.transponder: multi-stage (rust:1.85-bookworm builder → debian:bookworm-slim runtime); dummy main.rs trick caches deps layer
 - Entrypoint default: `/opt/transponder/bin/transponder` (was `.venv/bin/transponder` in Python era)
 - Test suite: 39 tests across all modules; `cargo test` runs without external dependencies
+- API tests: run with `VAULT_ADDR= python -m pytest api/tests/ -v` (unset Vault vars to use local dev keys)
+- Telemetry storage layout: `data/telemetry/{YYYY-MM-DD}/{serviceName}/{environment}/{type}.jsonl`
+- Telemetry store writes are fire-and-forget (log errors, don't block response)
+- Retention walks date directories, prunes based on `ARECIBO_RETENTION_DAYS` (default 180)
+- Query API follows Grafana JSON datasource conventions: GET with query params, not POST
+- Schema pattern: schemas versioned as `{type}.1.0.0.json` with `$id` for naming, `$ref` for composition
 
 ---
 
@@ -147,5 +153,66 @@ Updated AGENTS.md to reference Cargo.toml and Rust binary artifact. Rewrote tran
 - transponder/README.md
 - scripts/claudia/progress.txt
 - scripts/claudia/rust-tooling-feedback.md (new)
+
+---
+
+## 2026-03-03: arecibo-00009 - Define observability query API in OpenAPI spec
+
+### Summary
+Extended openapi.yml with 5 query endpoints under new 'observability' tag: fleet-health, heartbeat-freshness, event-throughput, go-dark-status, and recent-events. Created corresponding JSON schemas under schemas/query/. Added reusable query parameter components (start, end, maxRows, cursor, serviceName, environment filters).
+
+### Files Changed
+- openapi.yml (added query endpoints and parameter components)
+- schemas/query/fleet-health.1.0.0.json (new)
+- schemas/query/heartbeat-freshness.1.0.0.json (new)
+- schemas/query/event-throughput.1.0.0.json (new)
+- schemas/query/go-dark-status.1.0.0.json (new)
+- schemas/query/recent-events.1.0.0.json (new)
+
+### Learnings
+- Query endpoints use GET with query params for Grafana JSON datasource compatibility
+- Reusable $ref parameter components keep the spec DRY
+
+---
+
+## 2026-03-03: arecibo-00010 - Implement telemetry file storage module
+
+### Summary
+Created TelemetryStore class that writes ingest payloads to data/telemetry/ in JSONL files partitioned by date/service/environment. Wired into app.py lifespan and all three ingest endpoints (announce, heartbeat, events:batch). Writes are fire-and-forget to avoid blocking responses.
+
+### Files Changed
+- api/src/telemetry_store.py (new)
+- api/src/app.py (added TelemetryStore initialization and calls)
+- .gitignore (added data/telemetry/** exclusion)
+- data/telemetry/.gitkeep (new)
+
+### Learnings
+- Directory name sanitization prevents path traversal from serviceName/environment values
+- Append-mode writes with single JSON line per record keeps files safe for concurrent access
+
+---
+
+## 2026-03-03: arecibo-00011 - Implement 180-day telemetry retention
+
+### Summary
+Created retention module that prunes date-partitioned directories older than configurable retention period (default 180 days via ARECIBO_RETENTION_DAYS). Supports dry-run mode and deterministic execution with injectable clock. Wired into app.py lifespan via run_in_executor for non-blocking startup.
+
+### Files Changed
+- api/src/telemetry_retention.py (new)
+- api/src/app.py (added retention import and background startup task)
+
+### Learnings
+- shutil.rmtree for date partition cleanup is safe since partitions are self-contained
+- run_in_executor with lambda avoids keyword arg limitations
+
+---
+
+## 2026-03-03: arecibo-00014 - Add Arecibo to contrived-site APP_REGISTRY
+
+### Summary
+Verified that Arecibo is already fully integrated in contrived-site: APP_REGISTRY entry with viewer/admin roles, Stytch RBAC access computation, session payload inclusion, admin member listing, dashboard card rendering with locked/unlocked state, and proxy setup. No changes needed.
+
+### Files Changed
+- (none - already implemented in contrived-site)
 
 ---

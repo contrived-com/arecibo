@@ -27,3 +27,7 @@ terraform/vault/.terraform.lock.hcl
 
 # Rust
 transponder/target/
+
+# Telemetry data (keep .gitkeep)
+data/telemetry/**
+!data/telemetry/.gitkeep

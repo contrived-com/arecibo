@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arecibo/schemas/query/event-throughput/1.0.0",
+  "type": "object",
+  "required": ["data", "meta"],
+  "properties": {
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["bucket", "count"],
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "Z$"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "serviceName": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["totalRows", "bucketWidthSec", "start", "end"],
+      "properties": {
+        "totalRows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bucketWidthSec": {
+          "type": "integer",
+          "minimum": 10
+        },
+        "start": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

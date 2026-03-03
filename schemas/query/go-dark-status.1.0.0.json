@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arecibo/schemas/query/go-dark-status/1.0.0",
+  "type": "object",
+  "required": ["data", "meta"],
+  "properties": {
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["serviceName", "environment", "instanceId", "goDark", "reportedAt"],
+        "properties": {
+          "serviceName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "environment": {
+            "type": "string"
+          },
+          "instanceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "goDark": {
+            "type": "boolean"
+          },
+          "lastHeartbeatAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "pattern": "Z$"
+          },
+          "reportedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "Z$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["totalRows"],
+      "properties": {
+        "totalRows": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arecibo/schemas/query/recent-events/1.0.0",
+  "type": "object",
+  "required": ["data", "meta"],
+  "properties": {
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ts", "type", "severity", "serviceName", "environment"],
+        "properties": {
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "Z$"
+          },
+          "type": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["debug", "info", "warn", "error"]
+          },
+          "serviceName": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "batchId": {
+            "type": "string"
+          },
+          "transponderSessionId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["totalRows", "start", "end"],
+      "properties": {
+        "totalRows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "start": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "cursor": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

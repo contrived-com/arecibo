@@ -106,6 +106,155 @@
       "priority": 6,
       "passes": true,
       "notes": "Depends on arecibo-00006 and arecibo-00007. This is the final task that ensures all documentation is consistent with the completed Rust migration. AGENTS.md line 23 currently says 'Transponder package is defined in transponder/pyproject.toml and built as a locked artifact image'."
+    },
+    {
+      "id": "arecibo-00009",
+      "title": "Define observability query API in OpenAPI spec and add request/response schemas",
+      "acceptanceCriteria": [
+        "openapi.yml contains new tagged query endpoints: fleet health summary, heartbeat freshness, event throughput time series, GO_DARK status visibility, and recent event inspection.",
+        "Each query endpoint defines query parameters with documented limits, defaults, time range bounds, max rows, and pagination support.",
+        "New request/response JSON schemas exist under schemas/ for all query endpoint payloads.",
+        "Existing ingest and policy endpoint definitions remain unchanged.",
+        "A new 'observability' tag groups all query endpoints distinctly from ingest/policy tags."
+      ],
+      "description": "Following the API-first requirement, extend openapi.yml with query endpoints designed for Grafana datasource consumption. Add endpoints: GET /query/fleet-health (summary of known services, last-seen, status), GET /query/heartbeat-freshness (heartbeat recency by service/environment/instance with staleness thresholds), GET /query/event-throughput (time-bucketed event counts for time series panels), GET /query/go-dark-status (current GO_DARK directive state per service), GET /query/recent-events (paginated recent events with redaction-safe field projection). Define query parameter contracts: time range (start/end as RFC3339, default last 1h), maxRows (default 1000, max 10000), pagination cursor. Create corresponding JSON schemas under schemas/query/ for each response payload. Keep schemas versioned (1.0.0).",
+      "priority": 1,
+      "passes": false,
+      "notes": "Blocks arecibo-00012 (query endpoint implementation). This is API-first work that must be reviewed before implementation begins. Query endpoints use GET with query parameters, not POST, to align with Grafana JSON datasource plugin conventions. All response schemas should reference the existing api/result.1.0.0.json wrapper pattern where appropriate."
+    },
+    {
+      "id": "arecibo-00010",
+      "title": "Implement telemetry file storage module and wire persistence into ingest endpoints",
+      "acceptanceCriteria": [
+        "A telemetry storage module exists under api/src/ that writes accepted ingest payloads to ./data/telemetry/ in structured, append-friendly files.",
+        "Storage is partitioned by date and service/environment dimensions to avoid full-scan reads.",
+        "All timestamps in stored telemetry use RFC3339 UTC with trailing Z.",
+        "Existing ingest endpoints (announce, heartbeat, events:batch) persist payloads through the storage module without changing their response contracts.",
+        "Ingest latency is not meaningfully degraded by storage writes under normal operation."
+      ],
+      "description": "Create api/src/telemetry_store.py (or similar) implementing a TelemetryStore class that writes ingest payloads to the local filesystem under ./data/telemetry/. Directory layout: data/telemetry/{date}/{service}/{environment}/ with one JSONL file per payload type (announce.jsonl, heartbeat.jsonl, events.jsonl). Each line is a JSON object with the original payload plus a receivedAt timestamp. Use append mode writes with filesystem-level atomicity (write to temp, rename, or use append-only semantics). Wire into app.py lifespan to initialize the store, and call it from announce, heartbeat, and events:batch handlers after validation succeeds. Writes must not block the response path on failure (log and continue). Create the data/telemetry/.gitkeep to establish directory in repo.",
+      "priority": 1,
+      "passes": false,
+      "notes": "Blocks arecibo-00011 (retention) and arecibo-00012 (query endpoints need data to read). Can be developed in parallel with arecibo-00009 since storage concerns are independent of query API design. The partition layout directly affects query performance and retention pruning granularity."
+    },
+    {
+      "id": "arecibo-00011",
+      "title": "Implement 180-day telemetry retention with lifecycle logging",
+      "acceptanceCriteria": [
+        "A retention module prunes telemetry partitions older than 180 days from ./data/telemetry/.",
+        "Retention execution is deterministic: given the same filesystem state and current date, it always produces the same result.",
+        "Retention produces observable lifecycle logs indicating what was scanned, what was pruned, and any errors encountered.",
+        "Retention does not block the ingest path under normal operation.",
+        "Retention can be triggered on API startup and/or on a configurable schedule."
+      ],
+      "description": "Create api/src/telemetry_retention.py implementing retention logic that walks the date-partitioned directories under ./data/telemetry/, identifies partitions older than 180 days based on directory name, and removes them. Log each pruned partition and summary counts at INFO level. Handle edge cases: partially written partitions, permission errors (log and skip), empty parent directories after pruning. Wire into app.py lifespan to run retention on startup (non-blocking background task). Optionally support a configurable retention period via ARECIBO_RETENTION_DAYS env var (default 180). Include a dry-run mode for operational safety.",
+      "priority": 2,
+      "passes": false,
+      "notes": "Depends on arecibo-00010 (needs the storage layout to exist). Retention walks the date dimension of the partition tree, so the directory naming convention from arecibo-00010 must be stable. Consider running retention as an asyncio background task that yields to avoid blocking the event loop."
+    },
+    {
+      "id": "arecibo-00012",
+      "title": "Implement query endpoints for Grafana datasource consumption",
+      "acceptanceCriteria": [
+        "All query endpoints defined in the OpenAPI spec (arecibo-00009) are implemented and return valid responses.",
+        "Query endpoints read from the telemetry file storage established in arecibo-00010.",
+        "Endpoints enforce query parameter limits and defaults as documented in the spec.",
+        "Responses conform to the JSON schemas defined in arecibo-00009.",
+        "Query endpoints are authenticated via X-API-Key consistent with existing ingest endpoints."
+      ],
+      "description": "Implement the query route handlers in api/src/app.py (or a dedicated api/src/query_routes.py module). Create api/src/telemetry_reader.py with efficient read logic that leverages the partition structure to avoid full scans: date range filtering skips irrelevant date directories, service/environment filtering skips irrelevant subdirectories. Implement: fleet_health (aggregate last-seen per service from heartbeat data), heartbeat_freshness (latest heartbeat per service/env/instance with staleness calculation), event_throughput (time-bucket event counts from events data), go_dark_status (scan recent policy/directive state), recent_events (paginated scan of recent events with field projection for redaction safety). All queries respect start/end time range parameters and maxRows limits.",
+      "priority": 2,
+      "passes": false,
+      "notes": "Depends on arecibo-00009 (spec defines the contract) and arecibo-00010 (storage provides the data). Blocks arecibo-00013 (Grafana needs endpoints to target). Partition-aware reads are critical for performance; avoid loading all JSONL files into memory. Consider streaming/generator patterns for large result sets."
+    },
+    {
+      "id": "arecibo-00013",
+      "title": "Add arecibo-grafana container with provisioned datasources and starter dashboards",
+      "acceptanceCriteria": [
+        "docker-compose.yml includes an arecibo-grafana service using the official Grafana image.",
+        "Grafana datasource provisioning targets arecibo-api query endpoints on the internal Docker network.",
+        "At least one starter dashboard is provisioned from a repo-managed JSON file covering fleet health and heartbeat freshness.",
+        "Grafana boots with provisioned config on docker compose up without manual clickops.",
+        "Grafana is not exposed to unauthenticated public access; it binds to 127.0.0.1 or internal network only.",
+        "Grafana image version can be upgraded independently by changing a single image tag."
+      ],
+      "description": "Add arecibo-grafana service to docker-compose.yml using official grafana/grafana image with a pinned version tag. Create grafana/provisioning/datasources/arecibo.yml pointing to the arecibo-api internal URL (http://arecibo-api:8080) with JSON datasource plugin configuration. Create grafana/provisioning/dashboards/dashboards.yml for dashboard provider config. Create grafana/dashboards/ directory with at least two starter dashboard JSON files: one for fleet overview (fleet health + heartbeat freshness panels) and one for event activity (throughput time series + recent events table + GO_DARK status). Configure Grafana env vars for anonymous access disabled, admin password from env/Vault, and provisioning paths. Mount provisioning and dashboard directories as volumes. Ensure Grafana joins the arecibo Docker network for internal API access.",
+      "priority": 3,
+      "passes": false,
+      "notes": "Depends on arecibo-00012 (query endpoints must exist for datasource to target). Blocks arecibo-00016 (contrived-site proxy needs Grafana running). Use Grafana JSON API datasource plugin or Infinity plugin to query the REST endpoints. Dashboard JSON can be exported from a local Grafana instance after initial design, then committed as provisioned files."
+    },
+    {
+      "id": "arecibo-00014",
+      "title": "Add Arecibo to contrived-site APP_REGISTRY with Stytch RBAC and access computation",
+      "acceptanceCriteria": [
+        "APP_REGISTRY in contrived-site src/server.ts includes an 'arecibo' entry with roles/actions for none, viewer, and admin.",
+        "User access computation includes Arecibo app access level in the session/user payload.",
+        "Stytch RBAC integration correctly maps user roles to none/viewer/admin access for Arecibo.",
+        "Users with none access see the Arecibo card as locked; viewer and admin see it as accessible."
+      ],
+      "description": "In ~/dev/contrived-site/src/server.ts, add 'arecibo' to APP_REGISTRY with role definitions: none (no access, card locked), viewer (dashboard view only), admin (dashboard view plus Grafana edit/save permissions). Extend the user access computation logic (where session payload is built) to resolve the user's Arecibo access level from Stytch RBAC claims. The access level should be included in the user payload sent to the client so the dashboard can render the appropriate card state. Follow the same pattern used by existing apps in the registry.",
+      "priority": 1,
+      "passes": false,
+      "notes": "Independent of arecibo repo tasks; can be developed in parallel with arecibo-00009 and arecibo-00010. Blocks arecibo-00015 (card/launcher needs registry entry) and arecibo-00016 (proxy needs access levels). Must follow existing contrived-site patterns for APP_REGISTRY structure and Stytch integration."
+    },
+    {
+      "id": "arecibo-00015",
+      "title": "Implement Arecibo dashboard card, web component launcher, and hash routing in contrived-site",
+      "acceptanceCriteria": [
+        "An Arecibo app card renders on the contrived-site dashboard with appropriate locked/unlocked state based on user access level.",
+        "Clicking the card enters app mode and updates the URL hash to #arecibo.",
+        "The app launcher follows the web component pattern consistent with existing contrived-site embedded apps.",
+        "Hash restoration on page load correctly enters Arecibo app mode if #arecibo is present.",
+        "Leave-app behavior (back navigation, hash clear) matches existing dashboard UX standards."
+      ],
+      "description": "In ~/dev/contrived-site/public/dashboard.html (and any associated script modules), add the Arecibo app card to the dashboard grid. Card should display locked state for users with none access (greyed out, no click handler). For viewer/admin users, clicking enters app mode: hide dashboard grid, show app container, update URL hash to #arecibo. Implement the app launcher as a web component (or web-component-style integration) that loads the Grafana embedded experience into the app container. Handle hashchange events to support direct navigation to #arecibo and back-button behavior to return to dashboard. Follow the exact same interaction model as other embedded apps in contrived-site.",
+      "priority": 2,
+      "passes": false,
+      "notes": "Depends on arecibo-00014 (APP_REGISTRY and access levels must exist). Blocks arecibo-00016 (proxy is needed for the embedded Grafana content to load). The web component should defer loading Grafana content until the proxy path (arecibo-00016) is available; handle loading/error states gracefully."
+    },
+    {
+      "id": "arecibo-00016",
+      "title": "Add contrived-site protected proxy to Grafana with viewer/admin access enforcement",
+      "acceptanceCriteria": [
+        "A proxy path in contrived-site routes authenticated requests to the Grafana container.",
+        "Requests without valid Stytch session are rejected before reaching Grafana.",
+        "Viewer-level users can view dashboards but cannot access Grafana edit/save APIs.",
+        "Admin-level users can view and edit/save dashboards through the proxy.",
+        "Grafana iframe/embed rendering works correctly through the proxy path including assets, API calls, and WebSocket connections."
+      ],
+      "description": "In ~/dev/contrived-site/src/server.ts, add a protected proxy route (e.g., /arecibo/grafana/*) that forwards requests to the Grafana container. Before proxying, validate the user's Stytch session and Arecibo access level. For viewer users, allow GET requests to dashboard and panel rendering endpoints but block POST/PUT/DELETE to dashboard save endpoints. For admin users, allow full dashboard API access. Configure proxy headers (X-Forwarded-For, Host) appropriately. Handle Grafana's static assets, API routes, and any WebSocket connections for live dashboard updates. Set Grafana's root_url and serve_from_sub_path configuration to match the proxy path.",
+      "priority": 3,
+      "passes": false,
+      "notes": "Depends on arecibo-00013 (Grafana must be running to proxy to) and arecibo-00015 (launcher needs proxy to render content). This is the security boundary between the public web and Grafana. Grafana's GF_SERVER_ROOT_URL and GF_SERVER_SERVE_FROM_SUB_PATH env vars in docker-compose.yml (arecibo-00013) must align with the proxy path chosen here."
+    },
+    {
+      "id": "arecibo-00017",
+      "title": "Add tests for telemetry storage, retention, and query endpoints",
+      "acceptanceCriteria": [
+        "Tests cover telemetry storage writes for all ingest types (announce, heartbeat, events) including partition directory structure verification.",
+        "Tests cover retention pruning of stale partitions and verify that recent partitions are preserved.",
+        "Tests cover each query endpoint for happy path responses, parameter validation, empty data handling, and pagination.",
+        "Tests validate schema alignment between query responses and the JSON schemas defined in arecibo-00009.",
+        "All tests pass without requiring external services (Grafana, Vault, live collectors)."
+      ],
+      "description": "Create/extend test files under api/tests/ for the new telemetry and query functionality. Storage tests: verify JSONL append behavior, partition directory creation by date/service/environment, receivedAt timestamp injection, graceful handling of write failures. Retention tests: create fixture directories with various dates, run retention, verify correct pruning and preservation, verify lifecycle log output, test dry-run mode. Query endpoint tests: use FastAPI TestClient to hit each query endpoint with valid/invalid parameters, verify response schemas, test time range filtering, test maxRows limits, test pagination cursors, test empty data returns. Include edge cases: query across partition boundaries, retention of today's data, events with missing optional fields.",
+      "priority": 4,
+      "passes": false,
+      "notes": "Depends on arecibo-00010 (storage), arecibo-00011 (retention), and arecibo-00012 (query endpoints). Use pytest with tmp_path fixtures for isolated filesystem tests. Use FastAPI TestClient for endpoint integration tests. Mock the filesystem clock for deterministic retention tests."
+    },
+    {
+      "id": "arecibo-00018",
+      "title": "Write telemetry storage layout documentation and Grafana operational notes",
+      "acceptanceCriteria": [
+        "data/telemetry/README.md documents the partition layout, file formats, and naming conventions.",
+        "Retention behavior (180-day default, configuration, lifecycle logging) is documented.",
+        "Grafana provisioning workflow is documented: how to add/update dashboards, datasource configuration, and version upgrades.",
+        "Operational notes cover how to inspect telemetry data, manually trigger retention, and troubleshoot Grafana datasource connectivity."
+      ],
+      "description": "Create data/telemetry/README.md describing: directory structure (date/service/environment partitions), file format (JSONL with one record per line), field semantics, timestamp format (RFC3339 UTC Z), how data flows from ingest to storage. Document retention: default 180 days, ARECIBO_RETENTION_DAYS env var, startup execution, dry-run mode, what lifecycle logs to expect. Add Grafana operational section (can be in the same file or a separate grafana/README.md): provisioning file locations, how to update dashboards (export JSON from Grafana, commit to repo), datasource configuration pointing to internal API, upgrading Grafana version (change image tag in docker-compose.yml). Include troubleshooting tips for common issues.",
+      "priority": 5,
+      "passes": false,
+      "notes": "Depends on arecibo-00010, arecibo-00011, and arecibo-00013 being complete so documentation accurately reflects the implemented behavior. Keep docs concise and operator-oriented, not developer tutorial style. Reference AGENTS.md conventions where applicable."
     }
   ]
 }

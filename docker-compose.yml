@@ -49,6 +49,7 @@ services:
       - GF_AUTH_DISABLE_LOGIN_FORM=true
       - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3033/arecibo/grafana/}
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_LIVE_ALLOWED_ORIGINS=${GRAFANA_LIVE_ALLOWED_ORIGINS:-https://contrived.com,https://www.contrived.com}
       - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
       - GF_LOG_LEVEL=warn
     networks:

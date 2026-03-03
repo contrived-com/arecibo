@@ -60,5 +60,9 @@ script at `/opt/transponder/entrypoint.sh`.
   2. Vault fallback via AppRole env (`VAULT_ADDR`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`)
      reading `secret/${TRANSPONDER_VAULT_PATH:-arecibo/config}` field
      `${TRANSPONDER_API_KEY_FIELD:-arecibo_api_keys}`
+- Policy timing:
+  - `maxBatchSize` controls the upper bound of each flush batch.
+  - `maxTransponderSilenceSec` (policy) forces a partial flush when queued events
+    have waited that many seconds (0 disables silence forcing).
 - If `GO_DARK` is active, outbound sends stop while local ingest remains available.
 - Local ingest socket defaults to `unixgram` at `/tmp/transponder-ingest.sock`.

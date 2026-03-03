@@ -244,12 +244,18 @@ impl TransponderRuntime {
                         .get("maxBatchSize")
                         .and_then(|v| v.as_i64())
                         .unwrap_or(self.config.max_batch_size);
+                    self.policy.max_transponder_silence_sec = policy
+                        .get("maxTransponderSilenceSec")
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(self.policy.max_transponder_silence_sec)
+                        .max(0);
                 }
 
                 log::info!(
-                    "policy loaded version={} heartbeat={}s session={}",
+                    "policy loaded version={} heartbeat={}s max_silence={}s session={}",
                     self.policy.policy_version,
                     self.policy.heartbeat_interval_sec,
+                    self.policy.max_transponder_silence_sec,
                     self.policy.session_id,
                 );
             }
@@ -334,6 +340,16 @@ impl TransponderRuntime {
         };
 
         let limit = 1.max(self.policy.max_batch_size.min(self.config.max_batch_size)) as usize;
+        let queue_size = self.queue.size();
+        if queue_size == 0 {
+            return;
+        }
+        if self.policy.max_transponder_silence_sec > 0 && queue_size < limit {
+            let oldest_age = self.queue.oldest_age_sec().unwrap_or(0);
+            if oldest_age < self.policy.max_transponder_silence_sec as u64 {
+                return;
+            }
+        }
         let batch = self.queue.pop_batch(limit);
         if batch.is_empty() {
             return;
@@ -675,5 +691,22 @@ mod tests {
         let mut rt = TransponderRuntime::new(config);
         rt.bootstrap();
         assert_eq!(rt.selected_collector, "");
+    }
+
+    #[test]
+    fn test_flush_events_waits_for_silence_threshold() {
+        let config = make_test_config();
+        let mut rt = TransponderRuntime::new(config);
+        rt.selected_collector = "http://localhost:8080".to_string();
+        rt.policy.enabled = true;
+        rt.policy.session_id = "session-123".to_string();
+        rt.policy.max_batch_size = 1000;
+        rt.policy.max_transponder_silence_sec = 300;
+
+        rt.queue.push(json!({"i": 0}), &rt.counters);
+        rt.flush_events();
+
+        // Queue remains because max silence threshold not reached yet.
+        assert_eq!(rt.queue.size(), 1);
     }
 }

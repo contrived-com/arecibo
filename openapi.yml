@@ -102,7 +102,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Declared environment for policy lookup and validation.
+          description: Container name used for policy lookup and validation.
       responses:
         "200":
           description: Policy returned
@@ -122,6 +122,90 @@ paths:
                 $ref: ./schemas/api/result.1.0.0.json
         "429":
           $ref: "#/components/responses/Throttled"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [policy]
+      summary: Upsert policy blob
+      operationId: putPolicy
+      description: |
+        Stores or replaces a policy blob at:
+        `/data/policies/<serviceName>/<environment>.json`.
+        The request body must match the policy schema and the
+        body `serviceName`/`environment` must match query parameters.
+      parameters:
+        - name: serviceName
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: environment
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/policy/policy.1.0.0.json
+      responses:
+        "200":
+          description: Policy upserted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/api/result.1.0.0.json
+        "400":
+          description: Invalid key or policy mismatch
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/api/result.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [policy]
+      summary: Delete policy blob
+      operationId: deletePolicy
+      description: |
+        Deletes policy blob at:
+        `/data/policies/<serviceName>/<environment>.json`.
+      parameters:
+        - name: serviceName
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: environment
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Policy deleted
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/api/result.1.0.0.json
+        "400":
+          description: Invalid key
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/api/result.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: No policy configured for service/environment
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/api/result.1.0.0.json
         "500":
           $ref: "#/components/responses/InternalError"
 

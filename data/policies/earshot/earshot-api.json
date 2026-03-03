@@ -1,0 +1,22 @@
+{
+  "defaultSampleRate": 1.0,
+  "enabled": true,
+  "environment": "earshot-api",
+  "eventOverrides": {},
+  "heartbeatIntervalSec": 30,
+  "maxBatchSize": 500,
+  "maxEventQueueDepth": 10000,
+  "maxTransponderSilenceSec": 300,
+  "policyVersion": "1.0.0",
+  "redactionRules": [
+    {
+      "action": "remove",
+      "path": "payload.headers.authorization"
+    },
+    {
+      "action": "remove",
+      "path": "payload.headers.cookie"
+    }
+  ],
+  "serviceName": "earshot"
+}

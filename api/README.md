@@ -19,13 +19,23 @@ Environment variables:
 - `ARECIBO_VAULT_PATH` (default: `arecibo/config`) KV v2 path under mount `secret`
 - `ARECIBO_API_KEYS_FIELD` (default: `arecibo_api_keys`) field storing comma-separated keys accepted by `X-API-Key`
 - `ARECIBO_POLICY_TTL_SEC` (default: `60`) policy response TTL, minimum `5`
-- `ARECIBO_POLICY_FILE` optional JSON override file for policies keyed as `<service>:<environment>`
+- `ARECIBO_POLICY_ROOT` (default: `/data/policies`) policy blob root path
 - `ARECIBO_FORCE_GO_DARK` (`true`/`false`) deterministic test mode for all heartbeat/events responses
 - `ARECIBO_FORCE_GO_DARK_ON` comma-separated endpoint targets: `heartbeat`, `events`
 
 Local-only fallback (when Vault is not configured):
 
 - `ARECIBO_API_KEYS` comma-separated keys for development/testing
+
+## Policy blob storage
+
+Policies are file-backed and mutable:
+
+- Lookup path pattern: `<ARECIBO_POLICY_ROOT>/<service-name>/<container-name>.json`
+- `GET /policy` uses `serviceName` + `environment` query values as `<service-name>` + `<container-name>`
+- If file is missing, API returns `policy_not_found` (no hardcoded defaults)
+- `PUT /policy` writes/updates a blob at that path
+- `DELETE /policy` removes a blob at that path
 
 ## Run locally
 

@@ -13,6 +13,7 @@ pub struct PolicyState {
     pub enabled: bool,
     pub heartbeat_interval_sec: i64,
     pub max_batch_size: i64,
+    pub max_transponder_silence_sec: i64,
     pub ttl_sec: i64,
 }
 
@@ -24,6 +25,7 @@ impl Default for PolicyState {
             enabled: true,
             heartbeat_interval_sec: 30,
             max_batch_size: 1000,
+            max_transponder_silence_sec: 0,
             ttl_sec: 60,
         }
     }
@@ -92,6 +94,7 @@ mod tests {
         assert!(p.enabled);
         assert_eq!(p.heartbeat_interval_sec, 30);
         assert_eq!(p.max_batch_size, 1000);
+        assert_eq!(p.max_transponder_silence_sec, 0);
         assert_eq!(p.ttl_sec, 60);
     }
 }

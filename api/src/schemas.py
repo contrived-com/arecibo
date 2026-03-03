@@ -18,8 +18,9 @@ def _load_schema(path: Path) -> dict[str, Any]:
 
 def _strip_ids(value: Any) -> Any:
     # The repository schemas use non-URI $id values for naming/versioning.
-    # jsonschema uses $id for reference scope, which breaks local relative $ref
-    # resolution, so we remove $id before validation and resolve from file paths.
+    # jsonschema uses $id for reference scope, which breaks local relative
+    # $ref resolution, so we remove $id before validation and resolve from
+    # file paths.
     if isinstance(value, dict):
         result = {}
         for key, item in value.items():
@@ -47,16 +48,29 @@ class SchemaRegistry:
 
     def _register_defaults(self) -> None:
         self.register("result", SCHEMA_DIR / "api" / "result.1.0.0.json")
-        self.register("policy_response", SCHEMA_DIR / "policy" / "policy-response.1.0.0.json")
+        self.register("policy", SCHEMA_DIR / "policy" / "policy.1.0.0.json")
+        self.register(
+            "policy_response",
+            SCHEMA_DIR / "policy" / "policy-response.1.0.0.json",
+        )
         self.register("announce", SCHEMA_DIR / "ingest" / "announce.1.0.0.json")
-        self.register("heartbeat", SCHEMA_DIR / "ingest" / "heartbeat.1.0.0.json")
-        self.register("events_batch", SCHEMA_DIR / "ingest" / "events-batch.1.0.0.json")
+        self.register(
+            "heartbeat",
+            SCHEMA_DIR / "ingest" / "heartbeat.1.0.0.json",
+        )
+        self.register(
+            "events_batch",
+            SCHEMA_DIR / "ingest" / "events-batch.1.0.0.json",
+        )
 
     def register(self, name: str, path: Path) -> None:
         schema_uri = path.resolve().as_uri()
         schema = self._store[schema_uri]
         resolver = RefResolver(base_uri=schema_uri, referrer=schema, store=self._store)
-        validator = Draft202012Validator(schema, resolver=resolver)
+        validator = Draft202012Validator(
+            schema,
+            resolver=resolver,
+        )
         self._validators[name] = validator
         self._schemas[name] = schema
 

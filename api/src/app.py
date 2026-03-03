@@ -9,9 +9,9 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Header, Request, status
 from fastapi.responses import JSONResponse
 
-from .config import Settings, load_policy_overrides
+from .config import Settings
 from .logging_json import configure_logging
-from .policy_store import PolicyStore, default_policies
+from .policy_store import PolicyStore
 from .schemas import schema_registry
 
 
@@ -22,7 +22,13 @@ if API_DIR not in sys.path:
     sys.path.insert(0, API_DIR)
 
 
-def _result(request_id: str, *, status_value: str, error: dict | None = None, directives: list | None = None):
+def _result(
+    request_id: str,
+    *,
+    status_value: str,
+    error: dict | None = None,
+    directives: list | None = None,
+):
     payload = {"result": {"status": status_value, "requestId": request_id}}
     if error:
         payload["result"]["error"] = error
@@ -51,7 +57,10 @@ def _validated_response_or_500(schema_name: str, payload: dict) -> None:
         raise RuntimeError(f"Schema invalid response for {schema_name}: {'; '.join(errors)}")
 
 
-def _go_dark_directives_if_enabled(settings: Settings, endpoint_name: str) -> list[dict]:
+def _go_dark_directives_if_enabled(
+    settings: Settings,
+    endpoint_name: str,
+) -> list[dict]:
     if settings.force_go_dark:
         return [{"type": "GO_DARK"}]
     if endpoint_name in settings.force_go_dark_on:
@@ -59,16 +68,25 @@ def _go_dark_directives_if_enabled(settings: Settings, endpoint_name: str) -> li
     return []
 
 
+def _validate_policy_key_part(value: str, field_name: str) -> str:
+    clean = value.strip()
+    if not clean:
+        raise ValueError(f"{field_name} is required.")
+    if "/" in clean or "\\" in clean or ".." in clean:
+        raise ValueError(f"{field_name} contains invalid path characters.")
+    return clean
+
+
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         configure_logging()
         settings = Settings.from_env()
-        policies = default_policies()
-        if settings.default_policy_file:
-            policies.update(load_policy_overrides(settings.default_policy_file))
         app.state.settings = settings
-        app.state.policy_store = PolicyStore(settings.policy_ttl_sec, policies)
+        app.state.policy_store = PolicyStore(
+            settings.policy_ttl_sec,
+            settings.policy_root_dir,
+        )
         yield
 
     app = FastAPI(title="Arecibo API", version="0.1.0", lifespan=lifespan)
@@ -135,7 +153,11 @@ def create_app() -> FastAPI:
         return {"ok": True, "version": app.version}
 
     @app.post("/announce", status_code=status.HTTP_202_ACCEPTED)
-    async def post_announce(payload: dict, request: Request, _: str = Depends(_auth_dependency)):
+    async def post_announce(
+        payload: dict,
+        request: Request,
+        _: str = Depends(_auth_dependency),
+    ):
         _validated_or_400(request, "announce", payload)
         identity = payload["identity"]
         logger.info(
@@ -154,22 +176,45 @@ def create_app() -> FastAPI:
         return response_payload
 
     @app.get("/policy")
-    async def get_policy(serviceName: str, environment: str, request: Request, _: str = Depends(_auth_dependency)):
+    async def get_policy(
+        serviceName: str,
+        environment: str,
+        request: Request,
+        _: str = Depends(_auth_dependency),
+    ):
         policy_store: PolicyStore = app.state.policy_store
-        policy = policy_store.lookup_policy(serviceName, environment)
+        try:
+            service_name = _validate_policy_key_part(serviceName, "serviceName")
+            container_name = _validate_policy_key_part(environment, "environment")
+        except ValueError as exc:
+            payload = _result(
+                request.state.request_id,
+                status_value="rejected",
+                error={"code": "invalid_policy_key", "message": str(exc)},
+            )
+            _validated_response_or_500("result", payload)
+            return JSONResponse(status_code=400, content=payload)
+
+        policy = policy_store.lookup_policy(service_name, container_name)
         if not policy:
             payload = _result(
                 request.state.request_id,
                 status_value="rejected",
                 error={
                     "code": "policy_not_found",
-                    "message": f"No policy configured for service '{serviceName}' in environment '{environment}'.",
+                    "message": (
+                        f"No policy configured for service '{service_name}' "
+                        f"in container '{container_name}'."
+                    ),
                 },
             )
             _validated_response_or_500("result", payload)
             return JSONResponse(status_code=404, content=payload)
 
-        if policy["serviceName"] != serviceName or policy["environment"] != environment:
+        if (
+            policy["serviceName"] != service_name
+            or policy["environment"] != container_name
+        ):
             payload = _result(
                 request.state.request_id,
                 status_value="rejected",
@@ -181,23 +226,113 @@ def create_app() -> FastAPI:
             _validated_response_or_500("result", payload)
             return JSONResponse(status_code=403, content=payload)
 
-        response_payload = policy_store.build_policy_response(serviceName, environment, policy)
+        response_payload = policy_store.build_policy_response(
+            service_name,
+            container_name,
+            policy,
+        )
         _validated_response_or_500("policy_response", response_payload)
         logger.info(
             "policy_fetched",
             extra={
                 "fields": {
                     "requestId": request.state.request_id,
-                    "serviceName": serviceName,
-                    "environment": environment,
+                    "serviceName": service_name,
+                    "environment": container_name,
                     "transponderSessionId": response_payload["transponderSessionId"],
                 }
             },
         )
         return response_payload
 
+    @app.put("/policy")
+    async def put_policy(
+        serviceName: str,
+        environment: str,
+        payload: dict,
+        request: Request,
+        _: str = Depends(_auth_dependency),
+    ):
+        try:
+            service_name = _validate_policy_key_part(serviceName, "serviceName")
+            container_name = _validate_policy_key_part(environment, "environment")
+        except ValueError as exc:
+            error_payload = _result(
+                request.state.request_id,
+                status_value="rejected",
+                error={"code": "invalid_policy_key", "message": str(exc)},
+            )
+            _validated_response_or_500("result", error_payload)
+            return JSONResponse(status_code=400, content=error_payload)
+
+        _validated_or_400(request, "policy", payload)
+        if (
+            payload.get("serviceName") != service_name
+            or payload.get("environment") != container_name
+        ):
+            error_payload = _result(
+                request.state.request_id,
+                status_value="rejected",
+                error={
+                    "code": "policy_mismatch",
+                    "message": "Policy serviceName/environment must match query parameters.",
+                },
+            )
+            _validated_response_or_500("result", error_payload)
+            return JSONResponse(status_code=400, content=error_payload)
+
+        policy_store: PolicyStore = app.state.policy_store
+        policy_store.put_policy(service_name, container_name, payload)
+        ok_payload = _result(request.state.request_id, status_value="ok")
+        _validated_response_or_500("result", ok_payload)
+        return ok_payload
+
+    @app.delete("/policy")
+    async def delete_policy(
+        serviceName: str,
+        environment: str,
+        request: Request,
+        _: str = Depends(_auth_dependency),
+    ):
+        try:
+            service_name = _validate_policy_key_part(serviceName, "serviceName")
+            container_name = _validate_policy_key_part(environment, "environment")
+        except ValueError as exc:
+            error_payload = _result(
+                request.state.request_id,
+                status_value="rejected",
+                error={"code": "invalid_policy_key", "message": str(exc)},
+            )
+            _validated_response_or_500("result", error_payload)
+            return JSONResponse(status_code=400, content=error_payload)
+
+        policy_store: PolicyStore = app.state.policy_store
+        deleted = policy_store.delete_policy(service_name, container_name)
+        if not deleted:
+            error_payload = _result(
+                request.state.request_id,
+                status_value="rejected",
+                error={
+                    "code": "policy_not_found",
+                    "message": (
+                        f"No policy configured for service '{service_name}' "
+                        f"in container '{container_name}'."
+                    ),
+                },
+            )
+            _validated_response_or_500("result", error_payload)
+            return JSONResponse(status_code=404, content=error_payload)
+
+        ok_payload = _result(request.state.request_id, status_value="ok")
+        _validated_response_or_500("result", ok_payload)
+        return ok_payload
+
     @app.post("/heartbeat", status_code=status.HTTP_202_ACCEPTED)
-    async def post_heartbeat(payload: dict, request: Request, _: str = Depends(_auth_dependency)):
+    async def post_heartbeat(
+        payload: dict,
+        request: Request,
+        _: str = Depends(_auth_dependency),
+    ):
         _validated_or_400(request, "heartbeat", payload)
         status_payload = payload["status"]
         logger.info(
@@ -224,8 +359,16 @@ def create_app() -> FastAPI:
         return response_payload
 
     @app.post("/events:batch")
-    async def post_events_batch(payload: dict, request: Request, _: str = Depends(_auth_dependency)):
-        if isinstance(payload, dict) and isinstance(payload.get("events"), list) and len(payload["events"]) > 1000:
+    async def post_events_batch(
+        payload: dict,
+        request: Request,
+        _: str = Depends(_auth_dependency),
+    ):
+        if (
+            isinstance(payload, dict)
+            and isinstance(payload.get("events"), list)
+            and len(payload["events"]) > 1000
+        ):
             error_payload = _result(
                 request.state.request_id,
                 status_value="rejected",

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from dataclasses import dataclass
 
@@ -13,7 +12,7 @@ class Settings:
     force_go_dark: bool
     force_go_dark_on: set[str]
     policy_ttl_sec: int
-    default_policy_file: str
+    policy_root_dir: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -26,7 +25,8 @@ class Settings:
             keys_raw = vault_client.get_secret(vault_path, vault_key)
             if not keys_raw:
                 raise RuntimeError(
-                    f"Vault is configured but no API key material found at secret/{vault_path} field {vault_key}."
+                    "Vault is configured but no API key material found at "
+                    f"secret/{vault_path} field {vault_key}."
                 )
 
         if not keys_raw:
@@ -46,22 +46,15 @@ class Settings:
         ttl_raw = os.getenv("ARECIBO_POLICY_TTL_SEC", "60")
         policy_ttl_sec = max(5, int(ttl_raw))
 
-        default_policy_file = os.getenv("ARECIBO_POLICY_FILE", "")
+        policy_root_dir = (
+            os.getenv("ARECIBO_POLICY_ROOT", "/data/policies").strip()
+            or "/data/policies"
+        )
 
         return cls(
             api_keys=keys,
             force_go_dark=force_go_dark,
             force_go_dark_on=force_on,
             policy_ttl_sec=policy_ttl_sec,
-            default_policy_file=default_policy_file,
+            policy_root_dir=policy_root_dir,
         )
-
-
-def load_policy_overrides(path: str) -> dict[str, dict]:
-    if not path:
-        return {}
-    with open(path, "r", encoding="utf-8") as handle:
-        raw = json.load(handle)
-    if not isinstance(raw, dict):
-        raise ValueError("Policy file must be a JSON object keyed by service/environment.")
-    return raw

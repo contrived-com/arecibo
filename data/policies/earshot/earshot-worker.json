@@ -1,0 +1,18 @@
+{
+  "defaultSampleRate": 1.0,
+  "enabled": true,
+  "environment": "earshot-worker",
+  "eventOverrides": {},
+  "heartbeatIntervalSec": 30,
+  "maxBatchSize": 250,
+  "maxEventQueueDepth": 5000,
+  "maxTransponderSilenceSec": 300,
+  "policyVersion": "1.0.0",
+  "redactionRules": [
+    {
+      "action": "remove",
+      "path": "payload.openai.apiKey"
+    }
+  ],
+  "serviceName": "earshot"
+}

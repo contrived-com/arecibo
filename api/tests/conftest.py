@@ -9,10 +9,13 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture(autouse=True)
-def env_defaults(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+def env_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path) -> Generator[None, None, None]:
     monkeypatch.setenv("ARECIBO_API_KEYS", "test-key")
     monkeypatch.delenv("ARECIBO_FORCE_GO_DARK", raising=False)
     monkeypatch.delenv("ARECIBO_FORCE_GO_DARK_ON", raising=False)
+    policy_root = tmp_path / "policies"
+    policy_root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("ARECIBO_POLICY_ROOT", str(policy_root))
     yield
 
 

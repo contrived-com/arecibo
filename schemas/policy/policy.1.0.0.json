@@ -27,6 +27,7 @@
       "type": "boolean"
     },
     "defaultSampleRate": {
+      "description": "Sampling ratio from 0.0 to 1.0 (not a duration).",
       "type": "number",
       "minimum": 0,
       "maximum": 1
@@ -41,6 +42,7 @@
         "type": "object",
         "properties": {
           "sampleRate": {
+            "description": "Sampling ratio from 0.0 to 1.0 (not a duration).",
             "type": "number",
             "minimum": 0,
             "maximum": 1
@@ -81,6 +83,11 @@
       "type": "integer",
       "minimum": 1,
       "maximum": 1000
+    },
+    "maxTransponderSilenceSec": {
+      "description": "Maximum allowed age in seconds for the oldest queued event before forcing a partial flush.",
+      "type": "integer",
+      "minimum": 0
     }
   },
   "additionalProperties": false

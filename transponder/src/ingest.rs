@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
@@ -16,7 +16,7 @@ use crate::utils::utc_now;
 
 pub struct IngestQueue {
     max_depth: usize,
-    items: Mutex<VecDeque<Value>>,
+    items: Mutex<VecDeque<(Value, Instant)>>,
 }
 
 impl IngestQueue {
@@ -36,7 +36,7 @@ impl IngestQueue {
             } else {
                 false
             };
-            items.push_back(item);
+            items.push_back((item, Instant::now()));
             (dropped, items.len())
         };
         let mut c = counters.lock().unwrap();
@@ -52,11 +52,16 @@ impl IngestQueue {
     pub fn pop_batch(&self, limit: usize) -> Vec<Value> {
         let mut items = self.items.lock().unwrap();
         let n = limit.min(items.len());
-        items.drain(..n).collect()
+        items.drain(..n).map(|(event, _)| event).collect()
     }
 
     pub fn size(&self) -> usize {
         self.items.lock().unwrap().len()
+    }
+
+    pub fn oldest_age_sec(&self) -> Option<u64> {
+        let items = self.items.lock().unwrap();
+        items.front().map(|(_, queued_at)| queued_at.elapsed().as_secs())
     }
 }
 

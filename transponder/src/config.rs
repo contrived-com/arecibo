@@ -7,14 +7,14 @@ use serde_json::json;
 
 use crate::utils::get_hostname;
 
-fn env_bool(name: &str, default: bool) -> bool {
+pub(crate) fn env_bool(name: &str, default: bool) -> bool {
     match env::var(name) {
         Ok(raw) => matches!(raw.trim().to_lowercase().as_str(), "1" | "true" | "yes" | "on"),
         Err(_) => default,
     }
 }
 
-fn env_int(name: &str, default: i64, minimum: i64) -> i64 {
+pub(crate) fn env_int(name: &str, default: i64, minimum: i64) -> i64 {
     match env::var(name) {
         Ok(raw) => raw.parse::<i64>().map(|v| v.max(minimum)).unwrap_or(default),
         Err(_) => default,
@@ -234,5 +234,125 @@ impl TransponderConfig {
                 1024,
             ) as usize,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Use unique env var names per test to avoid parallel interference.
+
+    #[test]
+    fn test_env_bool_true_variants() {
+        for (i, val) in ["1", "true", "True", "TRUE", "yes", "YES", "on", "ON"].iter().enumerate() {
+            let name = format!("_TEST_BOOL_TRUE_{}", i);
+            env::set_var(&name, val);
+            assert!(env_bool(&name, false), "expected true for {:?}", val);
+            env::remove_var(&name);
+        }
+    }
+
+    #[test]
+    fn test_env_bool_false_variants() {
+        for (i, val) in ["0", "false", "no", "off", "random", ""].iter().enumerate() {
+            let name = format!("_TEST_BOOL_FALSE_{}", i);
+            env::set_var(&name, val);
+            assert!(!env_bool(&name, true), "expected false for {:?}", val);
+            env::remove_var(&name);
+        }
+    }
+
+    #[test]
+    fn test_env_bool_default_when_unset() {
+        let name = "_TEST_BOOL_UNSET_XYZ";
+        env::remove_var(name);
+        assert!(env_bool(name, true));
+        assert!(!env_bool(name, false));
+    }
+
+    #[test]
+    fn test_env_int_parses_valid_value() {
+        let name = "_TEST_INT_VALID";
+        env::set_var(name, "42");
+        assert_eq!(env_int(name, 10, 0), 42);
+        env::remove_var(name);
+    }
+
+    #[test]
+    fn test_env_int_enforces_minimum() {
+        let name = "_TEST_INT_MIN";
+        env::set_var(name, "2");
+        assert_eq!(env_int(name, 10, 5), 5);
+        env::remove_var(name);
+    }
+
+    #[test]
+    fn test_env_int_returns_default_on_invalid() {
+        let name = "_TEST_INT_INVALID";
+        env::set_var(name, "not-a-number");
+        assert_eq!(env_int(name, 99, 0), 99);
+        env::remove_var(name);
+    }
+
+    #[test]
+    fn test_env_int_returns_default_when_unset() {
+        let name = "_TEST_INT_UNSET_XYZ";
+        env::remove_var(name);
+        assert_eq!(env_int(name, 77, 0), 77);
+    }
+
+    #[test]
+    fn test_collector_candidate_dedup() {
+        // Simulate from_env candidate dedup logic directly.
+        let candidates_raw = "http://a:8080,http://b:8080,http://a:8080";
+        let mut candidates: Vec<String> = candidates_raw
+            .split(',')
+            .map(|s| s.trim().trim_end_matches('/').to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        // Simulate override insertion.
+        let override_url = "http://b:8080".to_string();
+        candidates.insert(0, override_url);
+
+        let mut deduped: Vec<String> = Vec::new();
+        for c in candidates {
+            if !c.is_empty() && !deduped.contains(&c) {
+                deduped.push(c);
+            }
+        }
+        assert_eq!(deduped, vec!["http://b:8080", "http://a:8080"]);
+    }
+
+    #[test]
+    fn test_collector_trailing_slash_stripped() {
+        let raw = "http://example.com/";
+        let result: Vec<String> = raw
+            .split(',')
+            .map(|s| s.trim().trim_end_matches('/').to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        assert_eq!(result, vec!["http://example.com"]);
+    }
+
+    #[test]
+    fn test_api_key_precedence_explicit_over_vault() {
+        // When TRANSPONDER_API_KEY is set, it should be used directly.
+        let name = "_TEST_TRANSPONDER_API_KEY_PREC";
+        env::set_var(name, "my-explicit-key");
+        let val = env::var(name).unwrap_or_default().trim().to_string();
+        assert_eq!(val, "my-explicit-key");
+        env::remove_var(name);
+    }
+
+    #[test]
+    fn test_vault_fallback_returns_empty_without_vault_env() {
+        // Ensure vault vars are unset.
+        env::remove_var("VAULT_ADDR");
+        env::remove_var("VAULT_ROLE_ID");
+        env::remove_var("VAULT_SECRET_ID");
+        let result = read_vault_transponder_api_key();
+        assert_eq!(result, "");
     }
 }

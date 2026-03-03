@@ -477,3 +477,203 @@ impl TransponderRuntime {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_directives_valid() {
+        let body = json!({
+            "result": {
+                "directives": [
+                    {"type": "GO_DARK"},
+                    {"type": "RESUME", "value": null},
+                    {"type": "SET_HEARTBEAT_INTERVAL", "value": 15, "ttlSec": 300}
+                ]
+            }
+        });
+        let directives = TransponderRuntime::parse_directives(&body);
+        assert_eq!(directives.len(), 3);
+        assert_eq!(directives[0].directive_type, "GO_DARK");
+        assert!(directives[0].value.is_none());
+        assert_eq!(directives[1].directive_type, "RESUME");
+        assert_eq!(directives[2].directive_type, "SET_HEARTBEAT_INTERVAL");
+        assert_eq!(directives[2].value.as_ref().unwrap().as_i64(), Some(15));
+        assert_eq!(directives[2].ttl_sec, Some(300));
+    }
+
+    #[test]
+    fn test_parse_directives_empty_result() {
+        let body = json!({"result": {}});
+        let directives = TransponderRuntime::parse_directives(&body);
+        assert!(directives.is_empty());
+    }
+
+    #[test]
+    fn test_parse_directives_no_result_key() {
+        let body = json!({"status": "ok"});
+        let directives = TransponderRuntime::parse_directives(&body);
+        assert!(directives.is_empty());
+    }
+
+    #[test]
+    fn test_parse_directives_skips_missing_type() {
+        let body = json!({
+            "result": {
+                "directives": [
+                    {"value": "no-type-field"},
+                    {"type": "", "value": "empty-type"},
+                    {"type": "VALID"}
+                ]
+            }
+        });
+        let directives = TransponderRuntime::parse_directives(&body);
+        assert_eq!(directives.len(), 1);
+        assert_eq!(directives[0].directive_type, "VALID");
+    }
+
+    #[test]
+    fn test_parse_directives_non_array() {
+        let body = json!({"result": {"directives": "not-an-array"}});
+        let directives = TransponderRuntime::parse_directives(&body);
+        assert!(directives.is_empty());
+    }
+
+    fn make_test_config() -> TransponderConfig {
+        TransponderConfig {
+            api_key: "test-key".to_string(),
+            collector_candidates: vec!["http://localhost:8080".to_string()],
+            probe_timeout_sec: 0.5,
+            http_timeout_sec: 1.0,
+            service_name: "test-svc".to_string(),
+            environment: "test".to_string(),
+            repository: "test/repo".to_string(),
+            commit_sha: "abc123".to_string(),
+            instance_id: "inst-1".to_string(),
+            startup_ts: "2026-01-01T00:00:00Z".to_string(),
+            hostname: "test-host".to_string(),
+            heartbeat_interval_sec: 30,
+            heartbeat_min_interval_sec: 5,
+            policy_refresh_jitter_sec: 2,
+            events_flush_interval_sec: 5,
+            queue_max_depth: 100,
+            max_batch_size: 50,
+            ingest_socket_enabled: false,
+            ingest_socket_path: "/tmp/test.sock".to_string(),
+            ingest_socket_buffer_bytes: 65535,
+        }
+    }
+
+    #[test]
+    fn test_apply_go_dark_and_resume() {
+        let config = make_test_config();
+        let mut rt = TransponderRuntime::new(config);
+        assert!(!rt.go_dark);
+
+        // Apply GO_DARK.
+        let body = json!({"result": {"directives": [{"type": "GO_DARK"}]}});
+        rt.apply_directives(&body);
+        assert!(rt.go_dark);
+
+        // Apply RESUME.
+        let body = json!({"result": {"directives": [{"type": "RESUME"}]}});
+        rt.apply_directives(&body);
+        assert!(!rt.go_dark);
+    }
+
+    #[test]
+    fn test_apply_set_heartbeat_interval() {
+        let config = make_test_config();
+        let mut rt = TransponderRuntime::new(config);
+        assert_eq!(rt.policy.heartbeat_interval_sec, 30);
+
+        // SET_HEARTBEAT_INTERVAL with value above minimum.
+        let body = json!({"result": {"directives": [{"type": "SET_HEARTBEAT_INTERVAL", "value": 60}]}});
+        rt.apply_directives(&body);
+        assert_eq!(rt.policy.heartbeat_interval_sec, 60);
+    }
+
+    #[test]
+    fn test_apply_set_heartbeat_interval_enforces_minimum() {
+        let config = make_test_config();
+        let mut rt = TransponderRuntime::new(config);
+
+        // SET_HEARTBEAT_INTERVAL with value below minimum (5).
+        let body = json!({"result": {"directives": [{"type": "SET_HEARTBEAT_INTERVAL", "value": 1}]}});
+        rt.apply_directives(&body);
+        assert_eq!(rt.policy.heartbeat_interval_sec, 5);
+    }
+
+    #[test]
+    fn test_apply_set_heartbeat_interval_string_value() {
+        let config = make_test_config();
+        let mut rt = TransponderRuntime::new(config);
+
+        // SET_HEARTBEAT_INTERVAL with string value.
+        let body = json!({"result": {"directives": [{"type": "SET_HEARTBEAT_INTERVAL", "value": "45"}]}});
+        rt.apply_directives(&body);
+        assert_eq!(rt.policy.heartbeat_interval_sec, 45);
+    }
+
+    #[test]
+    fn test_flush_events_policy_disabled_drops_and_counts() {
+        let config = make_test_config();
+        let mut rt = TransponderRuntime::new(config);
+        rt.policy.enabled = false;
+
+        // Push some events.
+        rt.queue.push(json!({"i": 0}), &rt.counters);
+        rt.queue.push(json!({"i": 1}), &rt.counters);
+        assert_eq!(rt.queue.size(), 2);
+
+        rt.flush_events();
+
+        // Queue should be empty, events dropped by policy.
+        assert_eq!(rt.queue.size(), 0);
+        let c = rt.counters.lock().unwrap();
+        assert_eq!(c.events_dropped_total, 2);
+        assert_eq!(c.events_dropped_by_policy_since_last_heartbeat, 2);
+    }
+
+    #[test]
+    fn test_flush_events_go_dark_skips_flush() {
+        let config = make_test_config();
+        let mut rt = TransponderRuntime::new(config);
+        rt.go_dark = true;
+
+        // Push events.
+        rt.queue.push(json!({"i": 0}), &rt.counters);
+        rt.flush_events();
+
+        // Events should remain in queue (go_dark skips the whole method).
+        assert_eq!(rt.queue.size(), 1);
+    }
+
+    #[test]
+    fn test_flush_events_no_session_id_drops() {
+        let config = make_test_config();
+        let mut rt = TransponderRuntime::new(config);
+        rt.selected_collector = "http://localhost:8080".to_string();
+        rt.policy.enabled = true;
+        rt.policy.session_id = String::new(); // No session.
+
+        rt.queue.push(json!({"i": 0}), &rt.counters);
+        rt.flush_events();
+
+        // Events should be dropped because no session_id.
+        assert_eq!(rt.queue.size(), 0);
+        let c = rt.counters.lock().unwrap();
+        assert_eq!(c.events_dropped_total, 1);
+        assert_eq!(c.events_dropped_by_policy_since_last_heartbeat, 1);
+    }
+
+    #[test]
+    fn test_bootstrap_no_candidates_remains_local() {
+        let mut config = make_test_config();
+        config.collector_candidates = vec![];
+        let mut rt = TransponderRuntime::new(config);
+        rt.bootstrap();
+        assert_eq!(rt.selected_collector, "");
+    }
+}

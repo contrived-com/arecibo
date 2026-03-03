@@ -1,28 +1,28 @@
-FROM python:3.12-slim AS builder
+# ---------- builder ----------
+FROM rust:1.85-bookworm AS builder
 
-ARG UV_VERSION=0.5.31
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+WORKDIR /build
 
-WORKDIR /work
+# Copy manifests and build script first for layer caching.
+COPY transponder/Cargo.toml transponder/Cargo.lock transponder/build.rs ./
 
-RUN pip install --no-cache-dir "uv==${UV_VERSION}"
+# Create a dummy main.rs so cargo can fetch & cache dependencies.
+RUN mkdir src && echo "fn main() {}" > src/main.rs \
+    && cargo build --release \
+    && rm -rf src
 
-COPY transponder /work/transponder
+# Copy the real source and rebuild.
+COPY transponder/src ./src
+RUN touch src/main.rs && cargo build --release
 
-WORKDIR /work/transponder
-RUN uv lock
-RUN uv build --wheel
-RUN uv venv /opt/transponder/.venv
-RUN uv pip install --python /opt/transponder/.venv/bin/python dist/*.whl
+# ---------- runtime ----------
+FROM debian:bookworm-slim
 
-FROM python:3.12-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+COPY --from=builder /build/target/release/transponder /opt/transponder/bin/transponder
+COPY transponder/entrypoint.sh /opt/transponder/entrypoint.sh
 
-COPY --from=builder /opt/transponder /opt/transponder
-COPY --from=builder /work/transponder/transponder.py /opt/transponder/transponder/transponder.py
-COPY --from=builder /work/transponder/entrypoint.sh /opt/transponder/transponder/entrypoint.sh
-
-RUN chmod +x /opt/transponder/transponder/entrypoint.sh
+RUN chmod +x /opt/transponder/bin/transponder /opt/transponder/entrypoint.sh

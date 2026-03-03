@@ -20,8 +20,8 @@ Primary objective: make fleet observability low-friction and low-maintenance so 
 - Script starts the transponder in the background with lower scheduling priority, then `exec "$@"`.
 - The app command remains PID 1 and is called the **primary application process**.
 - Transponder startup failure must never block app startup.
-- Transponder package is defined in `transponder/pyproject.toml` and built as a locked artifact image (`ghcr.io/contrived-com/arecibo-transponder`).
-- Downstream services should consume `/opt/transponder` via `COPY --from=...` instead of installing transponder dependencies at runtime.
+- Transponder binary is defined in `transponder/Cargo.toml` and built as a compiled Rust artifact image (`ghcr.io/contrived-com/arecibo-transponder`).
+- Downstream services should consume `/opt/transponder` via `COPY --from=...` (the binary lives at `/opt/transponder/bin/transponder`).
 
 ## Time Standard
 

@@ -15,6 +15,9 @@ Each entry documents what was implemented and lessons learned.
 - Build script: `build.rs` captures `RUSTC_VERSION` at compile time for announce payload
 - Announce payload uses `rustVersion` instead of `pythonVersion`
 - All JSON timestamps use RFC 3339 UTC with trailing Z
+- Dockerfile.transponder: multi-stage (rust:1.85-bookworm builder → debian:bookworm-slim runtime); dummy main.rs trick caches deps layer
+- Entrypoint default: `/opt/transponder/bin/transponder` (was `.venv/bin/transponder` in Python era)
+- Test suite: 39 tests across all modules; `cargo test` runs without external dependencies
 
 ---
 
@@ -97,5 +100,52 @@ Implemented TransponderRuntime with bootstrap (collector probing, announce, poli
 - Counter lock must be dropped before HTTP calls and before apply_directives (which may call refresh_policy)
 - Re-queue on failed event batch preserves Python behavior (events go back through push() which increments received counter)
 - ctrlc crate handles both SIGTERM and SIGINT with a single handler via AtomicBool
+
+---
+
+## 2026-03-03: arecibo-00006 - Update Dockerfile.transponder and entrypoint.sh
+
+### Summary
+Rewrote Dockerfile.transponder as a multi-stage Rust build: builder stage with `rust:1.85-bookworm` compiles the binary, runtime stage with `debian:bookworm-slim` copies only the binary to `/opt/transponder/bin/transponder`. Updated entrypoint.sh default TRANSPONDER_BIN path. Removed all Python-specific artifacts (Python base image, PYTHONDONTWRITEBYTECODE, uv/pip).
+
+### Files Changed
+- Dockerfile.transponder
+- transponder/entrypoint.sh
+
+### Learnings
+- Dummy main.rs trick in Dockerfile caches dependency compilation in a separate layer
+- ca-certificates needed in runtime image for TLS (ureq uses rustls + webpki-roots but system certs still useful)
+
+---
+
+## 2026-03-03: arecibo-00007 - Port and write Rust transponder tests
+
+### Summary
+Added 39 unit tests across config, model, ingest, client, and runtime modules. Tests cover env_bool/env_int parsing, collector candidate dedup, counter reset, queue overflow with counter updates, ingest socket lifecycle with event normalization, directive parsing, GO_DARK/RESUME toggling, SET_HEARTBEAT_INTERVAL with minimum enforcement, policy-disabled event drops, and HTTP connection failure handling. All tests pass without external dependencies.
+
+### Files Changed
+- transponder/src/config.rs (added #[cfg(test)] module, made env_bool/env_int pub(crate))
+- transponder/src/model.rs (added #[cfg(test)] module)
+- transponder/src/ingest.rs (added #[cfg(test)] module)
+- transponder/src/runtime.rs (added #[cfg(test)] module)
+- transponder/src/client.rs (added #[cfg(test)] module)
+
+### Learnings
+- Use unique env var names per test to avoid parallel test interference
+- Process-local Unix sockets in /tmp work well for ingest server integration tests
+- No mock framework needed; manual test doubles and direct struct construction suffice
+
+---
+
+## 2026-03-03: arecibo-00008 - Update documentation and logging artifacts
+
+### Summary
+Updated AGENTS.md to reference Cargo.toml and Rust binary artifact. Rewrote transponder/README.md for Rust development workflow. Created scripts/claudia/rust-tooling-feedback.md with crate recommendations, build time observations, musl considerations, and CI caching advice.
+
+### Files Changed
+- AGENTS.md
+- transponder/README.md
+- scripts/claudia/progress.txt
+- scripts/claudia/rust-tooling-feedback.md (new)
 
 ---

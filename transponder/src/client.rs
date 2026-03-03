@@ -115,3 +115,38 @@ impl CollectorClient {
         self.request("POST", "/events:batch", Some(payload), None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_url_encode_passthrough() {
+        assert_eq!(url_encode("hello"), "hello");
+        assert_eq!(url_encode("abc-123_foo.bar~baz"), "abc-123_foo.bar~baz");
+    }
+
+    #[test]
+    fn test_url_encode_special_chars() {
+        assert_eq!(url_encode("hello world"), "hello%20world");
+        assert_eq!(url_encode("a+b=c&d"), "a%2Bb%3Dc%26d");
+        assert_eq!(url_encode("my-service/prod"), "my-service%2Fprod");
+    }
+
+    #[test]
+    fn test_client_construction() {
+        let client = CollectorClient::new("http://localhost:8080/", "my-key", 2.0);
+        // Trailing slash should be stripped.
+        assert_eq!(client.base_url, "http://localhost:8080");
+        assert_eq!(client.api_key, "my-key");
+    }
+
+    #[test]
+    fn test_client_connection_failure_returns_zero() {
+        // Connecting to a port that won't respond should return (0, None).
+        let client = CollectorClient::new("http://127.0.0.1:1", "key", 0.5);
+        let (status, body) = client.health();
+        assert_eq!(status, 0);
+        assert!(body.is_none());
+    }
+}

@@ -1,5 +1,4 @@
-# ---------- builder ----------
-FROM rust:1.85-bookworm AS builder
+FROM clux/muslrust:stable AS builder
 
 WORKDIR /build
 
@@ -13,7 +12,10 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs \
 
 # Copy the real source and rebuild.
 COPY transponder/src ./src
-RUN touch src/main.rs && cargo build --release
+RUN touch src/main.rs \
+    && cargo build --release \
+    && file target/x86_64-unknown-linux-musl/release/transponder \
+    | grep -Eqi "statically linked|static-pie linked| static "
 
 # ---------- runtime ----------
 FROM debian:bookworm-slim
@@ -22,7 +24,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /build/target/release/transponder /opt/transponder/bin/transponder
+COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/transponder /opt/transponder/bin/transponder
 COPY transponder/entrypoint.sh /opt/transponder/entrypoint.sh
 
 RUN chmod +x /opt/transponder/bin/transponder /opt/transponder/entrypoint.sh

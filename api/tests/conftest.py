@@ -55,7 +55,11 @@ def sample_announce() -> dict:
         "eventId": "announce-0001",
         "sentAt": "2026-02-26T12:00:01Z",
         "identity": _sample_identity(),
-        "runtime": {"transponderPid": 42, "transponderVersion": "0.1.0", "pythonVersion": "3.12.0"},
+        "runtime": {
+            "transponderPid": 42,
+            "softwareVersion": "arecibo-transponder/0.1.0 (rust 1.84.0)",
+            "transponderVersion": "0.1.0",
+        },
     }
 
 

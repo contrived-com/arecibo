@@ -14,16 +14,16 @@
     },
     "runtime": {
       "type": "object",
-      "required": ["transponderPid", "transponderVersion"],
+      "required": ["transponderPid", "softwareVersion", "transponderVersion"],
       "properties": {
         "transponderPid": {
           "type": "integer",
           "minimum": 1
         },
-        "transponderVersion": {
+        "softwareVersion": {
           "type": "string"
         },
-        "pythonVersion": {
+        "transponderVersion": {
           "type": "string"
         }
       },

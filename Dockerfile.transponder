@@ -20,11 +20,25 @@ RUN touch src/main.rs \
 # ---------- runtime ----------
 FROM debian:bookworm-slim
 
+ARG TRANSPONDER_REPOSITORY=unknown-repository
+ARG TRANSPONDER_COMMIT_SHA=unknown
+ARG TRANSPONDER_COMMIT_URL=
+ARG TRANSPONDER_WORKFLOW_RUN_URL=
+ARG TRANSPONDER_IMAGE_REF=
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/transponder /opt/transponder/bin/transponder
 COPY transponder/entrypoint.sh /opt/transponder/entrypoint.sh
+RUN mkdir -p /opt/transponder \
+    && printf '{\n  "repository": "%s",\n  "commitSha": "%s",\n  "commitUrl": "%s",\n  "workflowRunUrl": "%s",\n  "imageRef": "%s"\n}\n' \
+      "$TRANSPONDER_REPOSITORY" \
+      "$TRANSPONDER_COMMIT_SHA" \
+      "$TRANSPONDER_COMMIT_URL" \
+      "$TRANSPONDER_WORKFLOW_RUN_URL" \
+      "$TRANSPONDER_IMAGE_REF" \
+      > /opt/transponder/transponder.config
 
 RUN chmod +x /opt/transponder/bin/transponder /opt/transponder/entrypoint.sh

@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::env;
+use std::fs;
 use std::time::Duration;
 
 use serde_json::json;
@@ -19,6 +20,50 @@ pub(crate) fn env_int(name: &str, default: i64, minimum: i64) -> i64 {
         Ok(raw) => raw.parse::<i64>().map(|v| v.max(minimum)).unwrap_or(default),
         Err(_) => default,
     }
+}
+
+fn derive_commit_url(repository: &str, commit_sha: &str) -> String {
+    let explicit = env::var("TRANSPONDER_COMMIT_URL")
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if !explicit.is_empty() {
+        return explicit;
+    }
+
+    let server = env::var("GITHUB_SERVER_URL")
+        .unwrap_or_else(|_| "https://github.com".to_string())
+        .trim()
+        .trim_end_matches('/')
+        .to_string();
+    if repository.is_empty()
+        || commit_sha.is_empty()
+        || repository == "unknown-repository"
+        || commit_sha == "unknown"
+    {
+        return String::new();
+    }
+    format!("{}/{}/commit/{}", server, repository, commit_sha)
+}
+
+fn read_transponder_config_field(
+    path: &str,
+    field: &str,
+) -> String {
+    let raw = match fs::read_to_string(path) {
+        Ok(v) => v,
+        Err(_) => return String::new(),
+    };
+    let parsed: serde_json::Value = match serde_json::from_str(&raw) {
+        Ok(v) => v,
+        Err(_) => return String::new(),
+    };
+    parsed
+        .get(field)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string()
 }
 
 fn read_vault_transponder_api_key() -> String {
@@ -128,6 +173,9 @@ pub struct TransponderConfig {
     pub environment: String,
     pub repository: String,
     pub commit_sha: String,
+    pub commit_url: String,
+    pub workflow_run_url: String,
+    pub image_ref: String,
     pub instance_id: String,
     pub startup_ts: String,
     pub hostname: String,
@@ -146,6 +194,8 @@ pub struct TransponderConfig {
 
 impl TransponderConfig {
     pub fn from_env(startup_ts: String) -> Self {
+        let transponder_config_path = env::var("TRANSPONDER_CONFIG_PATH")
+            .unwrap_or_else(|_| "/opt/transponder/transponder.config".to_string());
         let candidates_raw = env::var("TRANSPONDER_COLLECTOR_CANDIDATES")
             .unwrap_or_else(|_| "http://arecibo-api:8080,https://arecibo.contrived.com".to_string());
         let mut collector_candidates: Vec<String> = candidates_raw
@@ -181,10 +231,25 @@ impl TransponderConfig {
             .unwrap_or_else(|_| "unknown".to_string());
         let repository = env::var("TRANSPONDER_REPOSITORY")
             .or_else(|_| env::var("GITHUB_REPOSITORY"))
-            .unwrap_or_else(|_| "unknown-repository".to_string());
+            .unwrap_or_else(|_| read_transponder_config_field(&transponder_config_path, "repository"));
+        let repository = if repository.trim().is_empty() {
+            "unknown-repository".to_string()
+        } else {
+            repository
+        };
         let commit_sha = env::var("TRANSPONDER_COMMIT_SHA")
             .or_else(|_| env::var("GIT_COMMIT"))
-            .unwrap_or_else(|_| "unknown".to_string());
+            .unwrap_or_else(|_| read_transponder_config_field(&transponder_config_path, "commitSha"));
+        let commit_sha = if commit_sha.trim().is_empty() {
+            "unknown".to_string()
+        } else {
+            commit_sha
+        };
+        let commit_url = derive_commit_url(&repository, &commit_sha);
+        let workflow_run_url = env::var("TRANSPONDER_WORKFLOW_RUN_URL")
+            .unwrap_or_else(|_| read_transponder_config_field(&transponder_config_path, "workflowRunUrl"));
+        let image_ref = env::var("TRANSPONDER_IMAGE_REF")
+            .unwrap_or_else(|_| read_transponder_config_field(&transponder_config_path, "imageRef"));
         let instance_id = env::var("TRANSPONDER_INSTANCE_ID")
             .unwrap_or_else(|_| hostname.clone());
         let hostname_val = env::var("HOSTNAME")
@@ -216,6 +281,9 @@ impl TransponderConfig {
             environment,
             repository,
             commit_sha,
+            commit_url,
+            workflow_run_url,
+            image_ref,
             instance_id,
             startup_ts,
             hostname: hostname_val,

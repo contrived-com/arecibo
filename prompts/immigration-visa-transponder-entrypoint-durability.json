@@ -1,0 +1,27 @@
+{
+  "$schema": "https://claudia.contrived.com/schemas/prompt.schema.json",
+  "id": "immigration-visa-transponder-entrypoint-durability",
+  "title": "Durable Visa Entrypoint Transponder Enforcement",
+  "description": "Harden visa base layers so embedded transponder startup remains active even when downstream services customize entrypoint behavior.",
+  "authors": [
+    {
+      "name": "Sean",
+      "type": "human"
+    },
+    {
+      "name": "gpt-5.3-codex",
+      "type": "model"
+    }
+  ],
+  "createdAt": "2026-03-03T00:00:00Z",
+  "status": "ready",
+  "tags": [
+    "immigration",
+    "visa",
+    "embedded-transponder",
+    "entrypoint",
+    "durability"
+  ],
+  "executions": [],
+  "content": "# Durable Visa Entrypoint Transponder Enforcement\n\n## Intent\n\nMake transponder startup durable across downstream service repos, including services that override image `ENTRYPOINT` or use custom wrapper scripts.\n\nThe objective is to preserve the embedded-transponder contract from Arecibo even when app teams customize process startup.\n\n## Problem Statement\n\nA service can inherit transponder artifacts from visa layers but still accidentally bypass transponder startup by replacing `ENTRYPOINT` with a service-local script (for example, web images that rely on `docker-entrypoint.sh`).\n\nThis causes split behavior:\n- transponder binary exists in image\n- transponder process is not running at runtime\n- telemetry coverage becomes partial and inconsistent\n\n## Non-Negotiables\n\n1. Keep app process as PID 1 (`exec \"$@\"` behavior preserved).\n2. Transponder startup must remain best effort and must never block app startup.\n3. Keep `TRANSPONDER_*` contract stable.\n4. Avoid requiring every downstream repo to hand-maintain custom transponder startup logic.\n\n## Required Work\n\n### A) Visa-level startup contract hardening\n\nImplement a durable startup pattern in immigration-produced visa layers so transponder startup is not silently lost when entrypoint behavior is customized.\n\nDesign options to evaluate and choose from:\n- make canonical `/entrypoint.sh` the enforced launcher and provide a documented hook for pre-start logic\n- provide a chain-safe wrapper utility that downstream custom entrypoints can call in one line\n- include compatibility shims for common base image entrypoint patterns\n\nWhatever option is selected, define a single canonical integration path that downstream repos can adopt with minimal boilerplate.\n\n### B) Build-time policy/checks\n\nAdd safeguards in immigration build workflows to detect risky patterns in downstream Dockerfiles/config:\n- overriding `ENTRYPOINT` without chaining through transponder launcher\n- launcher script copied but never used\n- transponder binary present but no startup path\n\nChecks should fail fast (or at minimum emit explicit warnings in CI) with actionable remediation guidance.\n\n### C) Runtime verification signals\n\nAdd simple verification guidance/artifacts so rollout checks can confirm:\n- transponder binary present\n- transponder process running in long-lived services\n- expected announce/heartbeat behavior visible in Arecibo API logs\n\n### D) Documentation and migration guidance\n\nUpdate immigration docs with:\n- canonical startup pattern\n- anti-pattern examples that bypass transponder startup\n- migration steps for services that currently use custom entrypoints\n- concrete example patch for an nginx/web container using `docker-entrypoint.sh`\n\n## Acceptance Criteria\n\n1. Visa layers provide a durable transponder startup path resilient to common entrypoint overrides.\n2. Immigration CI/build checks catch bypass patterns before release.\n3. Migration docs include explicit before/after examples for custom entrypoint services.\n4. Validation instructions allow operators to confirm process-level transponder health post-deploy.\n5. No regression to app PID 1 semantics or startup non-blocking guarantees.\n\n## Deliverables\n\n- Immigration code changes implementing startup hardening and checks.\n- Updated immigration docs and integration examples.\n- Demonstrated rollout on at least one web-style service that previously bypassed transponder startup.\n"
+}

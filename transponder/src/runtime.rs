@@ -167,15 +167,54 @@ impl TransponderRuntime {
     }
 
     fn identity(&self) -> Value {
-        json!({
-            "serviceName": self.config.service_name,
-            "environment": self.config.environment,
-            "repository": self.config.repository,
-            "commitSha": self.config.commit_sha,
-            "instanceId": self.config.instance_id,
-            "startupTs": self.config.startup_ts,
-            "hostname": self.config.hostname,
-        })
+        let mut identity = serde_json::Map::new();
+        identity.insert(
+            "serviceName".to_string(),
+            Value::String(self.config.service_name.clone()),
+        );
+        identity.insert(
+            "environment".to_string(),
+            Value::String(self.config.environment.clone()),
+        );
+        identity.insert(
+            "repository".to_string(),
+            Value::String(self.config.repository.clone()),
+        );
+        identity.insert(
+            "commitSha".to_string(),
+            Value::String(self.config.commit_sha.clone()),
+        );
+        identity.insert(
+            "instanceId".to_string(),
+            Value::String(self.config.instance_id.clone()),
+        );
+        identity.insert(
+            "startupTs".to_string(),
+            Value::String(self.config.startup_ts.clone()),
+        );
+        identity.insert(
+            "hostname".to_string(),
+            Value::String(self.config.hostname.clone()),
+        );
+        if !self.config.commit_url.is_empty() {
+            identity.insert(
+                "commitUrl".to_string(),
+                Value::String(self.config.commit_url.clone()),
+            );
+        }
+        if !self.config.workflow_run_url.is_empty() {
+            identity.insert(
+                "workflowRunUrl".to_string(),
+                Value::String(self.config.workflow_run_url.clone()),
+            );
+        }
+        if !self.config.image_ref.is_empty() {
+            identity.insert(
+                "imageRef".to_string(),
+                Value::String(self.config.image_ref.clone()),
+            );
+        }
+        Value::Object(identity)
     }
 
     fn announce(&mut self) {
@@ -183,6 +222,11 @@ impl TransponderRuntime {
             Some(c) if !self.go_dark => c,
             _ => return,
         };
+        let software_version = format!(
+            "arecibo-transponder/{} (rust {})",
+            env!("CARGO_PKG_VERSION"),
+            env!("RUSTC_VERSION")
+        );
         let payload = json!({
             "schemaVersion": "1.0.0",
             "eventType": "announce",
@@ -191,8 +235,8 @@ impl TransponderRuntime {
             "identity": self.identity(),
             "runtime": {
                 "transponderPid": std::process::id(),
+                "softwareVersion": software_version,
                 "transponderVersion": env!("CARGO_PKG_VERSION"),
-                "rustVersion": env!("RUSTC_VERSION"),
             },
         });
         let (status, body) = client.announce(&payload);
@@ -202,7 +246,13 @@ impl TransponderRuntime {
             }
             log::info!("announce accepted");
         } else {
-            log::warn!("announce failed status={}", status);
+            log::warn!(
+                "announce failed status={} response={}",
+                status,
+                body.as_ref()
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "<empty>".to_string())
+            );
         }
     }
 
@@ -314,7 +364,13 @@ impl TransponderRuntime {
             }
             return;
         }
-        log::warn!("heartbeat failed status={}", status);
+        log::warn!(
+            "heartbeat failed status={} response={}",
+            status,
+            body.as_ref()
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "<empty>".to_string())
+        );
     }
 
     fn flush_events(&mut self) {
@@ -566,6 +622,9 @@ mod tests {
             environment: "test".to_string(),
             repository: "test/repo".to_string(),
             commit_sha: "abc123".to_string(),
+            commit_url: "https://github.com/test/repo/commit/abc123".to_string(),
+            workflow_run_url: "https://github.com/test/repo/actions/runs/1".to_string(),
+            image_ref: "ghcr.io/contrived-com/arecibo-transponder:abc123".to_string(),
             instance_id: "inst-1".to_string(),
             startup_ts: "2026-01-01T00:00:00Z".to_string(),
             hostname: "test-host".to_string(),

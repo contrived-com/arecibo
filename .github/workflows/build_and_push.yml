@@ -116,3 +116,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
+          build-args: |
+            TRANSPONDER_REPOSITORY=${{ github.repository }}
+            TRANSPONDER_COMMIT_SHA=${{ github.sha }}
+            TRANSPONDER_COMMIT_URL=${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+            TRANSPONDER_WORKFLOW_RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            TRANSPONDER_IMAGE_REF=${{ env.REGISTRY }}/${{ env.TRANSPONDER_IMAGE_NAME }}:${{ github.sha }}

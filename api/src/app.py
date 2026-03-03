@@ -45,6 +45,33 @@ def _result(
 def _validated_or_400(request: Request, schema_name: str, payload: dict) -> None:
     errors = schema_registry.validate(schema_name, payload)
     if errors:
+        identity = payload.get("identity") if isinstance(payload, dict) else None
+        logger.warning(
+            "payload_validation_failed",
+            extra={
+                "fields": {
+                    "requestId": request.state.request_id,
+                    "schemaName": schema_name,
+                    "path": str(request.url.path),
+                    "eventType": (
+                        payload.get("eventType")
+                        if isinstance(payload, dict)
+                        else None
+                    ),
+                    "serviceName": (
+                        identity.get("serviceName")
+                        if isinstance(identity, dict)
+                        else None
+                    ),
+                    "environment": (
+                        identity.get("environment")
+                        if isinstance(identity, dict)
+                        else None
+                    ),
+                    "errors": errors,
+                }
+            },
+        )
         message = "; ".join(errors)
         raise HTTPException(
             status_code=400,

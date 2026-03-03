@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
 import socket
+import urllib.request
 from dataclasses import dataclass
 
 
@@ -20,6 +22,51 @@ def _int(name: str, default: int, minimum: int = 0) -> int:
         return max(minimum, int(raw))
     except ValueError:
         return default
+
+
+def _read_vault_transponder_api_key() -> str:
+    vault_addr = os.getenv("VAULT_ADDR", "").strip().rstrip("/")
+    role_id = os.getenv("VAULT_ROLE_ID", "").strip()
+    secret_id = os.getenv("VAULT_SECRET_ID", "").strip()
+    if not (vault_addr and role_id and secret_id):
+        return ""
+
+    vault_path = os.getenv("TRANSPONDER_VAULT_PATH", "arecibo/config").strip().strip("/")
+    vault_field = os.getenv("TRANSPONDER_API_KEY_FIELD", "arecibo_api_keys").strip()
+    if not (vault_path and vault_field):
+        return ""
+
+    # AppRole login.
+    login_req = urllib.request.Request(
+        url=f"{vault_addr}/v1/auth/approle/login",
+        method="POST",
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        data=json.dumps({"role_id": role_id, "secret_id": secret_id}).encode("utf-8"),
+    )
+    try:
+        with urllib.request.urlopen(login_req, timeout=2.0) as resp:
+            login_data = json.loads(resp.read().decode("utf-8", errors="replace"))
+        token = str(login_data.get("auth", {}).get("client_token", "")).strip()
+        if not token:
+            return ""
+    except Exception:
+        return ""
+
+    read_req = urllib.request.Request(
+        url=f"{vault_addr}/v1/secret/data/{vault_path}",
+        method="GET",
+        headers={"X-Vault-Token": token, "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(read_req, timeout=2.0) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="replace"))
+        raw = str(data.get("data", {}).get("data", {}).get(vault_field, "")).strip()
+        if not raw:
+            return ""
+        # Arecibo commonly stores comma-separated key material; transponder only needs one.
+        return raw.split(",", 1)[0].strip()
+    except Exception:
+        return ""
 
 
 @dataclass(frozen=True)
@@ -75,6 +122,8 @@ class TransponderConfig:
         hostname = os.getenv("HOSTNAME", socket.gethostname())
 
         api_key = os.getenv("TRANSPONDER_API_KEY", "").strip()
+        if not api_key:
+            api_key = _read_vault_transponder_api_key()
 
         return cls(
             api_key=api_key,

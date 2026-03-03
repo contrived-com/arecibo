@@ -99,6 +99,13 @@ For step-by-step integration into other service repos, see:
 | `TRANSPONDER_IONICE_LEVEL` | `7` | I/O level used when class is `2` |
 | `TRANSPONDER_BIN` | `/opt/transponder/.venv/bin/transponder` | Transponder executable |
 | `TRANSPONDER_ARGS` | `` (empty) | Optional additional args |
+| `TRANSPONDER_API_KEY` | `` (empty) | Explicit transponder auth key (preferred override) |
+| `TRANSPONDER_VAULT_PATH` | `arecibo/config` | Vault KVv2 path under mount `secret` used when API key env is unset |
+| `TRANSPONDER_API_KEY_FIELD` | `arecibo_api_keys` | Vault field used when API key env is unset |
+
+If `TRANSPONDER_API_KEY` is unset, transponder will attempt Vault AppRole auth using
+`VAULT_ADDR`, `VAULT_ROLE_ID`, and `VAULT_SECRET_ID`, then read
+`secret/<TRANSPONDER_VAULT_PATH>` field `<TRANSPONDER_API_KEY_FIELD>`.
 
 ## Example integration (service Dockerfile)
 

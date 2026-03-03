@@ -28,5 +28,10 @@ uv run transponder
 - Collector discovery order:
   1. `TRANSPONDER_COLLECTOR_URL` (explicit override)
   2. `TRANSPONDER_COLLECTOR_CANDIDATES` (default internal first, then external)
+- API key discovery order:
+  1. `TRANSPONDER_API_KEY` (explicit override)
+  2. Vault fallback via AppRole env (`VAULT_ADDR`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`)
+     reading `secret/${TRANSPONDER_VAULT_PATH:-arecibo/config}` field
+     `${TRANSPONDER_API_KEY_FIELD:-arecibo_api_keys}`
 - If `GO_DARK` is active, outbound sends stop while local ingest remains available.
 - Local ingest socket defaults to `unixgram` at `/tmp/transponder-ingest.sock`.

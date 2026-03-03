@@ -56,7 +56,7 @@ Important:
 The transponder needs collector endpoint and auth:
 
 - `TRANSPONDER_COLLECTOR_URL` or `TRANSPONDER_COLLECTOR_CANDIDATES`
-- `TRANSPONDER_API_KEY`
+- `TRANSPONDER_API_KEY` (optional when Vault AppRole env is already present)
 - identity hints like `TRANSPONDER_SERVICE_NAME`, `TRANSPONDER_ENVIRONMENT`, etc.
 
 Current default collector candidates in transponder code are:
@@ -70,8 +70,11 @@ If the target service uses pointer-only `.env` (recommended), then:
 - `.env` should only contain Vault pointers/approle data (`VAULT_ADDR`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID`).
 - App-level secret values should live in Vault and be fetched at runtime.
 
-For `TRANSPONDER_API_KEY`, use the same strategy as other app secrets in that repo:
-- fetch from Vault in startup/bootstrap logic, then export/inject to process env.
+For `TRANSPONDER_API_KEY`, transponder now supports direct Vault fallback:
+- if `TRANSPONDER_API_KEY` is unset and `VAULT_ADDR`/`VAULT_ROLE_ID`/`VAULT_SECRET_ID` exist,
+  it reads `secret/${TRANSPONDER_VAULT_PATH:-arecibo/config}` field
+  `${TRANSPONDER_API_KEY_FIELD:-arecibo_api_keys}` at runtime.
+- `TRANSPONDER_API_KEY` still wins as an explicit override.
 
 Do **not** commit raw API keys.
 
@@ -113,7 +116,8 @@ Likely skip:
 Steps:
 1. Edit `api/Dockerfile`, `worker/Dockerfile`, and optionally `scraper/Dockerfile` with the `arecibo-transponder` copy + entrypoint pattern.
 2. Ensure compose env includes needed `TRANSPONDER_*` vars for those services.
-3. Keep Vault pointer-only policy and fetch `TRANSPONDER_API_KEY` via Vault runtime path.
+3. Keep Vault pointer-only policy; no extra transponder key env is needed if Vault AppRole
+   wiring already exists in the container runtime.
 4. Push, watch CI, verify containers healthy.
 
 ---
@@ -140,7 +144,7 @@ Quick checks:
 
 - Missing `ENTRYPOINT ["/entrypoint.sh"]` -> transponder never starts.
 - Overwriting CMD incorrectly -> app no longer PID 1.
-- Missing `TRANSPONDER_API_KEY` -> announce/policy calls rejected.
+- Missing `TRANSPONDER_API_KEY` and no Vault AppRole access/path -> announce/policy calls rejected.
 - Wrong Vault address/network -> cannot fetch key.
 - Forcing localhost collector where unreachable -> connection failures.
 

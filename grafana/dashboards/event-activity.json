@@ -1,0 +1,145 @@
+{
+  "uid": "arecibo-event-activity",
+  "title": "Arecibo - Event Activity",
+  "tags": ["arecibo"],
+  "timezone": "utc",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "serviceName",
+        "type": "textbox",
+        "label": "Service Name",
+        "current": { "value": "" },
+        "options": []
+      },
+      {
+        "name": "environment",
+        "type": "textbox",
+        "label": "Environment",
+        "current": { "value": "" },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Event Throughput",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "url": "/query/event-throughput",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              { "key": "start", "value": "${__from:date:iso}" },
+              { "key": "end", "value": "${__to:date:iso}" },
+              { "key": "serviceName", "value": "${serviceName}" },
+              { "key": "environment", "value": "${environment}" },
+              { "key": "bucketWidthSec", "value": "60" },
+              { "key": "maxRows", "value": "5000" }
+            ],
+            "headers": [
+              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
+            ]
+          },
+          "root_selector": "data",
+          "columns": [
+            { "selector": "bucket", "text": "Time", "type": "timestamp" },
+            { "selector": "count", "text": "Events", "type": "number" }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 50,
+            "gradientMode": "scheme",
+            "lineWidth": 1
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Recent Events",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "url": "/query/recent-events",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              { "key": "start", "value": "${__from:date:iso}" },
+              { "key": "end", "value": "${__to:date:iso}" },
+              { "key": "serviceName", "value": "${serviceName}" },
+              { "key": "environment", "value": "${environment}" },
+              { "key": "maxRows", "value": "200" }
+            ],
+            "headers": [
+              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
+            ]
+          },
+          "root_selector": "data",
+          "columns": [
+            { "selector": "ts", "text": "Timestamp", "type": "timestamp" },
+            { "selector": "type", "text": "Type", "type": "string" },
+            { "selector": "severity", "text": "Severity", "type": "string" },
+            { "selector": "serviceName", "text": "Service", "type": "string" },
+            { "selector": "environment", "text": "Environment", "type": "string" },
+            { "selector": "batchId", "text": "Batch ID", "type": "string" }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Severity" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-text" }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "debug": { "color": "blue", "text": "debug" } } },
+                  { "type": "value", "options": { "info": { "color": "green", "text": "info" } } },
+                  { "type": "value", "options": { "warn": { "color": "yellow", "text": "warn" } } },
+                  { "type": "value", "options": { "error": { "color": "red", "text": "error" } } }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -24,6 +24,11 @@ Each entry documents what was implemented and lessons learned.
 - Retention walks date directories, prunes based on `ARECIBO_RETENTION_DAYS` (default 180)
 - Query API follows Grafana JSON datasource conventions: GET with query params, not POST
 - Schema pattern: schemas versioned as `{type}.1.0.0.json` with `$id` for naming, `$ref` for composition
+- Query reader uses partition-aware reads: date range skips irrelevant dirs, service/env filtering at directory level
+- Pagination cursor: base64-encoded JSON offset `{"o": N}`, opaque to clients
+- Grafana: uses Infinity datasource plugin for REST API queries (yesoreyeram-infinity-datasource)
+- Grafana provisioning: datasources in `grafana/provisioning/datasources/`, dashboards in `grafana/dashboards/`
+- Docker compose Grafana: binds 127.0.0.1:3033, depends_on arecibo-api healthy, installs plugins via GF_INSTALL_PLUGINS
 
 ---
 
@@ -211,6 +216,80 @@ Created retention module that prunes date-partitioned directories older than con
 
 ### Summary
 Verified that Arecibo is already fully integrated in contrived-site: APP_REGISTRY entry with viewer/admin roles, Stytch RBAC access computation, session payload inclusion, admin member listing, dashboard card rendering with locked/unlocked state, and proxy setup. No changes needed.
+
+### Files Changed
+- (none - already implemented in contrived-site)
+
+---
+
+## 2026-03-03: arecibo-00012 - Implement query endpoints for Grafana datasource consumption
+
+### Summary
+Created TelemetryReader with partition-aware reads and five query route handlers: fleet-health, heartbeat-freshness, event-throughput, go-dark-status, and recent-events. All endpoints are GET with query params, authenticated via X-API-Key, and return responses conforming to the OpenAPI schemas. Wired into app.py via FastAPI APIRouter.
+
+### Files Changed
+- api/src/telemetry_reader.py (new)
+- api/src/query_routes.py (new)
+- api/src/app.py (added TelemetryReader init and query router)
+
+### Learnings
+- Partition-aware date filtering avoids scanning irrelevant directories
+- Base64-encoded offset cursor keeps pagination opaque and simple
+- Auth dependency must be extracted before router creation to share with both inline routes and router
+
+---
+
+## 2026-03-03: arecibo-00017 - Add tests for telemetry storage, retention, and query endpoints
+
+### Summary
+Added 44 new tests covering telemetry storage writes (partition structure, append behavior, sanitization, error handling), retention pruning (old/recent partitions, dry-run, env config), and all five query endpoints (happy path, empty data, filtering, pagination, cross-partition queries, parameter validation). Total suite: 57 tests all passing.
+
+### Files Changed
+- api/tests/test_telemetry_store.py (new)
+- api/tests/test_telemetry_retention.py (new)
+- api/tests/test_query_endpoints.py (new)
+
+### Learnings
+- Use tmp_path fixtures + direct JSONL writes to seed test data without going through the API
+- Override app.state.telemetry_reader after TestClient creation to point at temp dirs
+- mock.patch for _today_str gives deterministic partition dates in store tests
+
+---
+
+## 2026-03-03: arecibo-00013 - Add arecibo-grafana container with provisioned datasources
+
+### Summary
+Added arecibo-grafana service to docker-compose.yml using grafana/grafana:11.5.2 with Infinity datasource plugin. Created provisioning configs for datasource (pointing to arecibo-api internal URL) and file-based dashboard provider. Created two starter dashboards: fleet overview (health + freshness + GO_DARK tables) and event activity (throughput time series + recent events table).
+
+### Files Changed
+- docker-compose.yml (added arecibo-grafana service and grafana-data volume)
+- grafana/provisioning/datasources/arecibo.yml (new)
+- grafana/provisioning/dashboards/dashboards.yml (new)
+- grafana/dashboards/fleet-overview.json (new)
+- grafana/dashboards/event-activity.json (new)
+
+### Learnings
+- Infinity datasource plugin is simpler than JSON API plugin for REST endpoint queries
+- Dashboard JSON uses root_selector "data" to extract from the API response wrapper
+- GF_INSTALL_PLUGINS installs the Infinity plugin on first boot automatically
+
+---
+
+## 2026-03-03: arecibo-00018 - Write telemetry storage documentation and Grafana operational notes
+
+### Summary
+Created comprehensive documentation for telemetry storage layout (data/telemetry/README.md) covering directory structure, file format, timestamps, sanitization, data flow, retention, and query endpoints. Created Grafana operational notes (grafana/README.md) covering architecture, provisioning, dashboard updates, version upgrades, and troubleshooting.
+
+### Files Changed
+- data/telemetry/README.md (new)
+- grafana/README.md (new)
+
+---
+
+## 2026-03-03: arecibo-00015 - Implement Arecibo dashboard card in contrived-site
+
+### Summary
+Verified that the Arecibo dashboard card, web component launcher, and hash routing are already fully implemented in contrived-site. All five acceptance criteria are met: card renders with locked/unlocked state, click enters app mode with #arecibo hash, uses custom element pattern, supports hash restoration on load, and back-button exit behavior. No changes needed.
 
 ### Files Changed
 - (none - already implemented in contrived-site)

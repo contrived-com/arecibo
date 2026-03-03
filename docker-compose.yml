@@ -31,6 +31,39 @@ services:
       retries: 3
       start_period: 10s
 
+  arecibo-grafana:
+    image: grafana/grafana:11.5.2
+    container_name: arecibo-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3033:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-arecibo-admin}
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3033}
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
+      - GF_LOG_LEVEL=warn
+    networks:
+      - arecibo
+    depends_on:
+      arecibo-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  grafana-data:
+
 networks:
   arecibo:
     driver: bridge

@@ -13,7 +13,9 @@ from fastapi.responses import JSONResponse
 from .config import Settings
 from .logging_json import configure_logging
 from .policy_store import PolicyStore
+from .query_routes import create_query_router
 from .schemas import schema_registry
+from .telemetry_reader import TelemetryReader
 from .telemetry_retention import get_retention_days, run_retention
 from .telemetry_store import TelemetryStore
 
@@ -92,6 +94,7 @@ def create_app() -> FastAPI:
         )
         telemetry_dir = os.path.join(os.path.dirname(API_DIR), "data", "telemetry")
         app.state.telemetry_store = TelemetryStore(telemetry_dir)
+        app.state.telemetry_reader = TelemetryReader(telemetry_dir)
         # Run retention in background so it doesn't block startup
         retention_days = get_retention_days()
         loop = asyncio.get_event_loop()
@@ -101,6 +104,32 @@ def create_app() -> FastAPI:
         yield
 
     app = FastAPI(title="Arecibo API", version="0.1.0", lifespan=lifespan)
+
+    # Auth dependency needs to be defined before the router
+    async def _auth_dependency(
+        request: Request, x_api_key: str | None = Header(default=None, alias="X-API-Key")
+    ):
+        if not x_api_key:
+            raise HTTPException(
+                status_code=401,
+                detail=_result(
+                    request.state.request_id,
+                    status_value="rejected",
+                    error={"code": "unauthorized", "message": "Missing X-API-Key."},
+                ),
+            )
+        if x_api_key not in app.state.settings.api_keys:
+            raise HTTPException(
+                status_code=401,
+                detail=_result(
+                    request.state.request_id,
+                    status_value="rejected",
+                    error={"code": "unauthorized", "message": "Invalid X-API-Key."},
+                ),
+            )
+        return x_api_key
+
+    app.include_router(create_query_router(_auth_dependency))
 
     @app.middleware("http")
     async def request_context(request: Request, call_next):
@@ -135,29 +164,6 @@ def create_app() -> FastAPI:
         )
         _validated_response_or_500("result", payload)
         return JSONResponse(status_code=500, content=payload)
-
-    async def _auth_dependency(
-        request: Request, x_api_key: str | None = Header(default=None, alias="X-API-Key")
-    ):
-        if not x_api_key:
-            raise HTTPException(
-                status_code=401,
-                detail=_result(
-                    request.state.request_id,
-                    status_value="rejected",
-                    error={"code": "unauthorized", "message": "Missing X-API-Key."},
-                ),
-            )
-        if x_api_key not in app.state.settings.api_keys:
-            raise HTTPException(
-                status_code=401,
-                detail=_result(
-                    request.state.request_id,
-                    status_value="rejected",
-                    error={"code": "unauthorized", "message": "Invalid X-API-Key."},
-                ),
-            )
-        return x_api_key
 
     @app.get("/health")
     async def get_health():

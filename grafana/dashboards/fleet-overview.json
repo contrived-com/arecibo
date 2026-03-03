@@ -1,0 +1,187 @@
+{
+  "uid": "arecibo-fleet-overview",
+  "title": "Arecibo - Fleet Overview",
+  "tags": ["arecibo"],
+  "timezone": "utc",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "serviceName",
+        "type": "textbox",
+        "label": "Service Name",
+        "current": { "value": "" },
+        "options": []
+      },
+      {
+        "name": "environment",
+        "type": "textbox",
+        "label": "Environment",
+        "current": { "value": "" },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Fleet Health Summary",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "url": "/query/fleet-health",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              { "key": "start", "value": "${__from:date:iso}" },
+              { "key": "end", "value": "${__to:date:iso}" },
+              { "key": "serviceName", "value": "${serviceName}" },
+              { "key": "environment", "value": "${environment}" },
+              { "key": "maxRows", "value": "1000" }
+            ],
+            "headers": [
+              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
+            ]
+          },
+          "root_selector": "data",
+          "columns": [
+            { "selector": "serviceName", "text": "Service", "type": "string" },
+            { "selector": "environment", "text": "Environment", "type": "string" },
+            { "selector": "instanceCount", "text": "Instances", "type": "number" },
+            { "selector": "lastAnnouncedAt", "text": "Last Announced", "type": "timestamp" },
+            { "selector": "lastHeartbeatAt", "text": "Last Heartbeat", "type": "timestamp" },
+            { "selector": "status", "text": "Status", "type": "string" }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-text" }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "healthy": { "color": "green", "text": "Healthy" } } },
+                  { "type": "value", "options": { "stale": { "color": "yellow", "text": "Stale" } } },
+                  { "type": "value", "options": { "offline": { "color": "red", "text": "Offline" } } }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "Heartbeat Freshness",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "url": "/query/heartbeat-freshness",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              { "key": "start", "value": "${__from:date:iso}" },
+              { "key": "end", "value": "${__to:date:iso}" },
+              { "key": "serviceName", "value": "${serviceName}" },
+              { "key": "environment", "value": "${environment}" },
+              { "key": "maxRows", "value": "1000" }
+            ],
+            "headers": [
+              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
+            ]
+          },
+          "root_selector": "data",
+          "columns": [
+            { "selector": "serviceName", "text": "Service", "type": "string" },
+            { "selector": "environment", "text": "Environment", "type": "string" },
+            { "selector": "instanceId", "text": "Instance", "type": "string" },
+            { "selector": "lastHeartbeatAt", "text": "Last Heartbeat", "type": "timestamp" },
+            { "selector": "staleSec", "text": "Stale (sec)", "type": "number" },
+            { "selector": "status", "text": "Status", "type": "string" }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-text" }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "fresh": { "color": "green", "text": "Fresh" } } },
+                  { "type": "value", "options": { "stale": { "color": "yellow", "text": "Stale" } } },
+                  { "type": "value", "options": { "offline": { "color": "red", "text": "Offline" } } }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "GO_DARK Status",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "url": "/query/go-dark-status",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              { "key": "serviceName", "value": "${serviceName}" },
+              { "key": "environment", "value": "${environment}" },
+              { "key": "maxRows", "value": "1000" }
+            ],
+            "headers": [
+              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
+            ]
+          },
+          "root_selector": "data",
+          "columns": [
+            { "selector": "serviceName", "text": "Service", "type": "string" },
+            { "selector": "environment", "text": "Environment", "type": "string" },
+            { "selector": "instanceId", "text": "Instance", "type": "string" },
+            { "selector": "goDark", "text": "GO_DARK", "type": "boolean" },
+            { "selector": "reportedAt", "text": "Reported At", "type": "timestamp" }
+          ]
+        }
+      ]
+    }
+  ]
+}

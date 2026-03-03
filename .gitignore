@@ -24,3 +24,6 @@ Thumbs.db
 terraform/vault/.terraform/
 terraform/vault/*.tfstate*
 terraform/vault/.terraform.lock.hcl
+
+# Rust
+transponder/target/

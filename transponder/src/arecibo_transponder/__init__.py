@@ -1,1 +1,0 @@
-"""Arecibo transponder runtime package."""

@@ -3,4 +3,99 @@
 This file tracks completed work by the Claudia autonomous agent.
 Each entry documents what was implemented and lessons learned.
 
+## Codebase Patterns
+
+- Rust toolchain: use `RUSTUP_HOME=$HOME/.rustup CARGO_HOME=$HOME/.cargo` in CI containers where `/usr/local/cargo` is read-only
+- Transponder binary name: `transponder` (declared in Cargo.toml [[bin]])
+- HTTP client: uses `ureq` 2.x (blocking, lightweight) instead of `reqwest` to avoid async/tokio overhead
+- Thread-safe counters: `Arc<Mutex<TransponderCounters>>` shared between runtime and ingest threads; locks are never held during HTTP calls
+- Ingest socket: background thread with 500ms read timeout for clean shutdown (matches Python socket.close() pattern)
+- Config env parsing: `env_bool` for truthy values, `env_int` with minimum enforcement, float timeout parsing with defaults
+- Vault fallback: synchronous ureq calls with 2s timeout, only runs once at startup
+- Build script: `build.rs` captures `RUSTC_VERSION` at compile time for announce payload
+- Announce payload uses `rustVersion` instead of `pythonVersion`
+- All JSON timestamps use RFC 3339 UTC with trailing Z
+
+---
+
+## 2026-03-03: arecibo-00001 - Initialize Rust project structure
+
+### Summary
+Removed Python packaging layout (pyproject.toml, uv.lock, transponder.py, src/arecibo_transponder/, tests/) and created Rust project skeleton with Cargo.toml, build.rs, and module files.
+
+### Files Changed
+- transponder/Cargo.toml (new)
+- transponder/build.rs (new)
+- transponder/src/main.rs (new)
+- transponder/src/config.rs (new)
+- transponder/src/client.rs (new)
+- transponder/src/model.rs (new)
+- transponder/src/ingest.rs (new)
+- transponder/src/runtime.rs (new)
+- transponder/src/utils.rs (new)
+- .gitignore (added transponder/target/)
+- Removed: pyproject.toml, uv.lock, transponder.py, src/arecibo_transponder/*, tests/*
+
+### Learnings
+- System rustc 1.81 was too old for latest crate versions (getrandom 0.4 needs edition2024). Installed Rust 1.93.1 via rustup to home dir.
+
+---
+
+## 2026-03-03: arecibo-00002 - Config/env parsing with Vault fallback
+
+### Summary
+Implemented TransponderConfig struct with from_env() that reads all TRANSPONDER_* env vars with identical defaults and precedence as Python. Vault AppRole login and secret read for API key fallback preserved with ureq blocking HTTP.
+
+### Files Changed
+- transponder/src/config.rs
+
+### Learnings
+- env_bool matches Python truthiness: "1", "true", "yes", "on" (case-insensitive)
+- Collector candidate dedup preserves insertion order (override first, then defaults)
+
+---
+
+## 2026-03-03: arecibo-00003 - HTTP collector client and model types
+
+### Summary
+Implemented CollectorClient with health/announce/policy/heartbeat/events_batch methods using ureq. Error handling preserves Python semantic parity: HTTP errors return (code, parsed_body), connection errors return (0, None). Model types (Directive, PolicyState, TransponderCounters) ported to Rust.
+
+### Files Changed
+- transponder/src/client.rs
+- transponder/src/model.rs
+
+### Learnings
+- Manual URL encoding for query params avoids extra dependency; only serviceName/environment used
+- ureq Error::Status variant maps cleanly to Python HTTPError pattern
+
+---
+
+## 2026-03-03: arecibo-00004 - Unix datagram ingest and bounded queue
+
+### Summary
+Implemented IngestQueue with Mutex-protected VecDeque, drop-oldest overflow with counter updates. IngestDatagramServer runs in background thread with 500ms read timeout, parses JSON datagrams, normalizes events (ts/type/severity/payload/tags).
+
+### Files Changed
+- transponder/src/ingest.rs
+
+### Learnings
+- Split lock acquisition in push() to avoid holding both queue and counter locks simultaneously (prevents deadlock)
+- Socket read timeout instead of closing from another thread is cleaner for Rust ownership model
+
+---
+
+## 2026-03-03: arecibo-00005 - Runtime loop with lifecycle and shutdown
+
+### Summary
+Implemented TransponderRuntime with bootstrap (collector probing, announce, policy fetch), main loop (heartbeat/policy refresh/event flush on intervals, 200ms tick), directive handling (GO_DARK/RESUME/REFRESH_POLICY/SET_HEARTBEAT_INTERVAL/FLUSH_STATS), and graceful SIGTERM/SIGINT shutdown via ctrlc crate.
+
+### Files Changed
+- transponder/src/runtime.rs
+- transponder/src/main.rs
+
+### Learnings
+- Counter lock must be dropped before HTTP calls and before apply_directives (which may call refresh_policy)
+- Re-queue on failed event batch preserves Python behavior (events go back through push() which increments received counter)
+- ctrlc crate handles both SIGTERM and SIGINT with a single handler via AtomicBool
+
 ---

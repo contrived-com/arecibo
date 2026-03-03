@@ -29,6 +29,9 @@ Each entry documents what was implemented and lessons learned.
 - Grafana: uses Infinity datasource plugin for REST API queries (yesoreyeram-infinity-datasource)
 - Grafana provisioning: datasources in `grafana/provisioning/datasources/`, dashboards in `grafana/dashboards/`
 - Docker compose Grafana: binds 127.0.0.1:3033, depends_on arecibo-api healthy, installs plugins via GF_INSTALL_PLUGINS
+- Grafana sub-path proxy: GF_SERVER_SERVE_FROM_SUB_PATH=true with root_url ending in /arecibo/grafana/; anonymous Editor role since auth is proxy-managed
+- Grafana proxy access control: isGrafanaMutationPath() targets dashboard/folder/org/admin mutation APIs; viewer-safe POSTs (e.g. /api/ds/query) are allowed
+- WebSocket proxy: server.on('upgrade') with manual cookie parsing + Stytch session auth; pipes sockets bidirectionally via http.request upgrade
 
 ---
 
@@ -293,5 +296,22 @@ Verified that the Arecibo dashboard card, web component launcher, and hash routi
 
 ### Files Changed
 - (none - already implemented in contrived-site)
+
+---
+
+## 2026-03-03: arecibo-00016 - Add contrived-site protected proxy to Grafana
+
+### Summary
+Configured Grafana for sub-path serving at `/arecibo/grafana/` with anonymous Editor role (auth proxy-managed). Updated contrived-site proxy to forward full paths, use targeted mutation-path admin checks (allows viewer POST for datasource queries), and added WebSocket upgrade handler with Stytch session auth for Grafana Live support.
+
+### Files Changed
+- docker-compose.yml (Grafana sub-path, anonymous auth, healthcheck path)
+- ~/dev/contrived-site/src/server.ts (http import, getAreciboGrafanaBase default, isGrafanaMutationPath, areciboProxyRequest isAdminRequired option, Grafana route full-path forwarding, WebSocket upgrade handler)
+
+### Learnings
+- Grafana serve_from_sub_path=true requires healthcheck, root_url, and proxy to all use the sub-path prefix
+- Anonymous role as Editor is appropriate when proxy is the security boundary
+- isGrafanaMutationPath allows viewer-safe POSTs like /api/ds/query while blocking dashboard/folder/org mutations
+- WebSocket upgrade events bypass Express middleware; manual cookie parsing and Stytch auth required
 
 ---

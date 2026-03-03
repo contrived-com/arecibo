@@ -44,9 +44,11 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-arecibo-admin}
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_AUTH_ANONYMOUS_ENABLED=false
-      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3033}
-      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Editor
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3033/arecibo/grafana/}
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
       - GF_LOG_LEVEL=warn
     networks:
@@ -55,7 +57,7 @@ services:
       arecibo-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/arecibo/grafana/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3

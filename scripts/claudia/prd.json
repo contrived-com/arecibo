@@ -224,7 +224,7 @@
       ],
       "description": "In ~/dev/contrived-site/src/server.ts, add a protected proxy route (e.g., /arecibo/grafana/*) that forwards requests to the Grafana container. Before proxying, validate the user's Stytch session and Arecibo access level. For viewer users, allow GET requests to dashboard and panel rendering endpoints but block POST/PUT/DELETE to dashboard save endpoints. For admin users, allow full dashboard API access. Configure proxy headers (X-Forwarded-For, Host) appropriately. Handle Grafana's static assets, API routes, and any WebSocket connections for live dashboard updates. Set Grafana's root_url and serve_from_sub_path configuration to match the proxy path.",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on arecibo-00013 (Grafana must be running to proxy to) and arecibo-00015 (launcher needs proxy to render content). This is the security boundary between the public web and Grafana. Grafana's GF_SERVER_ROOT_URL and GF_SERVER_SERVE_FROM_SUB_PATH env vars in docker-compose.yml (arecibo-00013) must align with the proxy path chosen here."
     },
     {

@@ -2,5 +2,70 @@
   "project": "arecibo",
   "version": "0.1.0",
   "branchName": "main",
-  "userStories": []
+  "userStories": [
+    {
+      "id": "arecibo-00001",
+      "title": "Initialize Rust project structure and remove Python packaging layout",
+      "description": "Clean up the transponder directory to remove the nested Python package structure (src/arecibo_transponder/, pyproject.toml, uv.lock, transponder.py wrapper) and initialize a Rust project in its place. Create Cargo.toml with appropriate dependencies (tokio, reqwest, serde, serde_json, uuid, chrono). Set up the Rust module layout with placeholder files: src/main.rs, src/config.rs, src/client.rs, src/ingest.rs, src/model.rs, src/runtime.rs, src/utils.rs. Preserve entrypoint.sh and README.md (to be updated later). Verify the project compiles with `cargo check`.",
+      "priority": 1,
+      "passes": false,
+      "notes": "Blocks all other tasks. This establishes the Rust project skeleton that everything else builds on. Keep the Python source accessible in git history but remove it from the working tree. The entrypoint.sh TRANSPONDER_BIN default path will need updating in a later task (arecibo-00006)."
+    },
+    {
+      "id": "arecibo-00002",
+      "title": "Implement config/env parsing module with Vault API key fallback",
+      "description": "Port transponder/src/arecibo_transponder/config.py to Rust as src/config.rs. Implement TransponderConfig struct with all fields matching the Python dataclass. Implement from_env() constructor that reads TRANSPONDER_* environment variables with identical defaults and precedence: collector candidate parsing/dedup, service identity fields with fallbacks (SERVICE_NAME, ENVIRONMENT, GITHUB_REPOSITORY, GIT_COMMIT, HOSTNAME), numeric parsing with minimums, boolean parsing. Implement Vault AppRole login and secret read for API key fallback (_read_vault_transponder_api_key equivalent) using blocking HTTP calls with 2s timeout. Preserve the precedence: explicit TRANSPONDER_API_KEY > Vault fallback > empty string.",
+      "priority": 2,
+      "passes": false,
+      "notes": "Depends on arecibo-00001. This is the foundation module used by all other Rust modules. The Vault fallback uses synchronous HTTP (can use reqwest::blocking or ureq) since it runs once at startup. Must handle all TRANSPONDER_VAULT_PATH and TRANSPONDER_API_KEY_FIELD env vars."
+    },
+    {
+      "id": "arecibo-00003",
+      "title": "Implement HTTP collector client and API protocol types",
+      "description": "Port transponder/src/arecibo_transponder/client.py to Rust as src/client.rs. Implement CollectorClient struct with methods: health() GET /health, announce() POST /announce, policy() GET /policy with query params, heartbeat() POST /heartbeat, events_batch() POST /events:batch. Each method returns (status_code, Option<serde_json::Value>). Include X-API-Key header, Content-Type/Accept headers, and configurable timeout. Handle HTTP errors gracefully (return status code + parsed body on HTTP errors, return 0 + None on connection failures). Also port model.py to src/model.rs: Directive, PolicyState, TransponderCounters (with reset_heartbeat_window), TransponderRuntimeState structs.",
+      "priority": 3,
+      "passes": false,
+      "notes": "Depends on arecibo-00002 for config types. Use reqwest with blocking or async client. The client must handle the same error patterns as Python: HTTPError returns (code, parsed_body), other exceptions return (0, None)."
+    },
+    {
+      "id": "arecibo-00004",
+      "title": "Implement Unix datagram ingest socket and bounded event queue",
+      "description": "Port transponder/src/arecibo_transponder/ingest.py to Rust as src/ingest.rs. Implement IngestQueue with thread-safe bounded deque: push() that drops oldest on overflow and updates counters, pop_batch() that removes up to N items, size(). Implement IngestDatagramServer that listens on a Unix SOCK_DGRAM socket, parses incoming JSON datagrams into events (with ts/type/severity/payload/tags fields), and pushes them into the queue. Server runs in a background thread with clean stop semantics. Ensure socket file is created with 0o666 permissions and cleaned up on start. Buffer size configurable via config.",
+      "priority": 3,
+      "passes": false,
+      "notes": "Depends on arecibo-00002 for config and arecibo-00003 for model types (TransponderCounters). Can be developed in parallel with arecibo-00003 if model types are defined first. Uses std::os::unix::net::UnixDatagram."
+    },
+    {
+      "id": "arecibo-00005",
+      "title": "Implement transponder runtime loop with lifecycle, directives, and graceful shutdown",
+      "description": "Port transponder/src/arecibo_transponder/runtime.py to Rust as src/runtime.rs and wire up src/main.rs. Implement TransponderRuntime with: bootstrap (collector probing via health endpoint, announce, initial policy fetch), main loop (heartbeat on interval, policy refresh on TTL, event flush on interval, 200ms sleep tick), graceful shutdown on SIGTERM/SIGINT. Implement directive parsing and application: GO_DARK (suppress outbound), RESUME (re-enable), REFRESH_POLICY (immediate refresh), SET_HEARTBEAT_INTERVAL (with minimum enforcement), FLUSH_STATS (log counters). Implement _flush_events with policy-driven batching: respect enabled flag, enforce max_batch_size, require session_id, re-queue on failure. Wire main.rs to construct config, create runtime, and call run(). Implement utils (utc_now with RFC 3339 Z format, new_event_id, setup logging).",
+      "priority": 4,
+      "passes": false,
+      "notes": "Depends on arecibo-00002, arecibo-00003, arecibo-00004. This is the integration point that ties all modules together. The announce payload must include transponderVersion and rustVersion instead of pythonVersion. Signal handling uses ctrlc crate or tokio::signal."
+    },
+    {
+      "id": "arecibo-00006",
+      "title": "Update Dockerfile.transponder and entrypoint.sh for Rust binary",
+      "description": "Rewrite Dockerfile.transponder to build the Rust transponder binary instead of a Python wheel. Use a multi-stage build: builder stage with rust toolchain compiles the binary (consider musl target for static linking), final stage copies the binary to /opt/transponder/bin/transponder. Update entrypoint.sh TRANSPONDER_BIN default from /opt/transponder/.venv/bin/transponder to /opt/transponder/bin/transponder. Remove Python-specific ENV vars (PYTHONDONTWRITEBYTECODE, PYTHONUNBUFFERED) and Python base image. Ensure the final image is minimal (e.g., debian-slim or scratch/alpine). Ensure downstream COPY --from pattern still works with /opt/transponder path.",
+      "priority": 5,
+      "passes": false,
+      "notes": "Depends on arecibo-00005 (need a buildable binary). The COPY --from integration pattern for downstream services must remain simple. Test that `docker build -f Dockerfile.transponder .` succeeds. Consider caching cargo registry and target dir for CI speed."
+    },
+    {
+      "id": "arecibo-00007",
+      "title": "Port and write Rust transponder tests",
+      "description": "Create tests validating Rust transponder behavior parity for critical flows. Port existing Python tests: (1) config precedence - explicit API key vs Vault fallback vs empty, (2) bootstrap - collector probing sets selected_collector and loads policy, (3) directives - GO_DARK/RESUME toggle, (4) flush_events - sends batch with correct session_id and event count. Add new tests for: (5) bounded queue overflow drops oldest and updates counters, (6) policy disabled drops events and updates counters, (7) collector candidate dedup logic, (8) config env parsing defaults and overrides. Tests should use mock HTTP responses rather than real network calls.",
+      "priority": 5,
+      "passes": false,
+      "notes": "Depends on arecibo-00005 (needs compiled runtime modules). Can be developed in parallel with arecibo-00006. Use Rust's built-in #[cfg(test)] modules and consider mockall or manual test doubles for the HTTP client."
+    },
+    {
+      "id": "arecibo-00008",
+      "title": "Update documentation, AGENTS.md references, and create logging artifacts",
+      "description": "Update transponder/README.md to reflect Rust development workflow: cargo build, cargo test, cargo run instead of uv commands. Update AGENTS.md line 23 (pyproject.toml reference) to reference Cargo.toml and Rust binary artifact image. Remove references to Python packaging throughout docs. Document the new source layout. Update any integration examples. Ensure scripts/claudia/progress.txt has execution timeline entries and create scripts/claudia/rust-tooling-feedback.md with practical Rust tooling observations from the migration (build times, crate recommendations, musl considerations, CI caching advice).",
+      "priority": 6,
+      "passes": false,
+      "notes": "Depends on arecibo-00006 and arecibo-00007. This is the final task that ensures all documentation is consistent with the completed Rust migration. AGENTS.md line 23 currently says 'Transponder package is defined in transponder/pyproject.toml and built as a locked artifact image'."
+    }
+  ]
 }

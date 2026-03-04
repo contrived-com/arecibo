@@ -303,6 +303,15 @@ impl TransponderConfig {
             ) as usize,
         }
     }
+
+    pub fn identity_is_explicit(&self) -> bool {
+        let service = self.service_name.trim();
+        let environment = self.environment.trim();
+        !service.is_empty()
+            && !environment.is_empty()
+            && service != "unknown-service"
+            && environment != "unknown"
+    }
 }
 
 #[cfg(test)]
@@ -422,5 +431,65 @@ mod tests {
         env::remove_var("VAULT_SECRET_ID");
         let result = read_vault_transponder_api_key();
         assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_identity_is_explicit_true_for_real_identity() {
+        let cfg = TransponderConfig {
+            api_key: String::new(),
+            collector_candidates: vec![],
+            probe_timeout_sec: 1.0,
+            http_timeout_sec: 1.0,
+            service_name: "claudia".to_string(),
+            environment: "prod".to_string(),
+            repository: "contrived-com/claudia".to_string(),
+            commit_sha: "abc".to_string(),
+            commit_url: String::new(),
+            workflow_run_url: String::new(),
+            image_ref: String::new(),
+            instance_id: "i-1".to_string(),
+            startup_ts: "2026-03-04T00:00:00Z".to_string(),
+            hostname: "host".to_string(),
+            heartbeat_interval_sec: 30,
+            heartbeat_min_interval_sec: 5,
+            policy_refresh_jitter_sec: 2,
+            events_flush_interval_sec: 5,
+            queue_max_depth: 1000,
+            max_batch_size: 1000,
+            ingest_socket_enabled: true,
+            ingest_socket_path: "/tmp/transponder.sock".to_string(),
+            ingest_socket_buffer_bytes: 65535,
+        };
+        assert!(cfg.identity_is_explicit());
+    }
+
+    #[test]
+    fn test_identity_is_explicit_false_for_unknown_defaults() {
+        let cfg = TransponderConfig {
+            api_key: String::new(),
+            collector_candidates: vec![],
+            probe_timeout_sec: 1.0,
+            http_timeout_sec: 1.0,
+            service_name: "unknown-service".to_string(),
+            environment: "unknown".to_string(),
+            repository: "contrived-com/arecibo".to_string(),
+            commit_sha: "abc".to_string(),
+            commit_url: String::new(),
+            workflow_run_url: String::new(),
+            image_ref: String::new(),
+            instance_id: "i-1".to_string(),
+            startup_ts: "2026-03-04T00:00:00Z".to_string(),
+            hostname: "host".to_string(),
+            heartbeat_interval_sec: 30,
+            heartbeat_min_interval_sec: 5,
+            policy_refresh_jitter_sec: 2,
+            events_flush_interval_sec: 5,
+            queue_max_depth: 1000,
+            max_batch_size: 1000,
+            ingest_socket_enabled: true,
+            ingest_socket_path: "/tmp/transponder.sock".to_string(),
+            ingest_socket_buffer_bytes: 65535,
+        };
+        assert!(!cfg.identity_is_explicit());
     }
 }

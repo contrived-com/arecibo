@@ -90,6 +90,17 @@ def _validated_response_or_500(schema_name: str, payload: dict) -> None:
         raise RuntimeError(f"Schema invalid response for {schema_name}: {'; '.join(errors)}")
 
 
+def _identity_is_unresolved(identity: dict) -> bool:
+    service_name = str(identity.get("serviceName", "")).strip()
+    environment = str(identity.get("environment", "")).strip()
+    return (
+        not service_name
+        or not environment
+        or service_name == "unknown-service"
+        or environment == "unknown"
+    )
+
+
 def _go_dark_directives_if_enabled(
     settings: Settings,
     endpoint_name: str,
@@ -249,6 +260,20 @@ def create_app() -> FastAPI:
     ):
         _validated_or_400(request, "announce", payload)
         identity = payload["identity"]
+        if _identity_is_unresolved(identity):
+            logger.warning(
+                "transponder_identity_unresolved",
+                extra={
+                    "fields": {
+                        "requestId": request.state.request_id,
+                        "eventType": "announce",
+                        "serviceName": identity.get("serviceName"),
+                        "environment": identity.get("environment"),
+                        "instanceId": identity.get("instanceId"),
+                        "repository": identity.get("repository"),
+                    }
+                },
+            )
         logger.info(
             "announce_received",
             extra={
@@ -424,14 +449,29 @@ def create_app() -> FastAPI:
         _: str = Depends(_auth_dependency),
     ):
         _validated_or_400(request, "heartbeat", payload)
+        identity = payload["identity"]
+        if _identity_is_unresolved(identity):
+            logger.warning(
+                "transponder_identity_unresolved",
+                extra={
+                    "fields": {
+                        "requestId": request.state.request_id,
+                        "eventType": "heartbeat",
+                        "serviceName": identity.get("serviceName"),
+                        "environment": identity.get("environment"),
+                        "instanceId": identity.get("instanceId"),
+                        "repository": identity.get("repository"),
+                    }
+                },
+            )
         status_payload = payload["status"]
         logger.info(
             "heartbeat_received",
             extra={
                 "fields": {
                     "requestId": request.state.request_id,
-                    "serviceName": payload["identity"]["serviceName"],
-                    "environment": payload["identity"]["environment"],
+                    "serviceName": identity["serviceName"],
+                    "environment": identity["environment"],
                     "transponderUptimeSec": status_payload["transponderUptimeSec"],
                     "eventsReceivedTotal": status_payload["eventsReceivedTotal"],
                     "eventsSentTotal": status_payload["eventsSentTotal"],

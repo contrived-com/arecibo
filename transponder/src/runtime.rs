@@ -111,6 +111,14 @@ impl TransponderRuntime {
     }
 
     fn bootstrap(&mut self) {
+        if !self.config.identity_is_explicit() {
+            log::warn!(
+                "transponder identity unresolved (serviceName='{}', environment='{}'); continuing with degraded identity",
+                self.config.service_name,
+                self.config.environment
+            );
+        }
+
         if self.config.collector_candidates.is_empty() {
             log::warn!("no collector candidates configured; transponder remains local-only");
             return;

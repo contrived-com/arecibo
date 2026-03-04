@@ -51,9 +51,6 @@
               { "key": "serviceName", "value": "${serviceName}" },
               { "key": "environment", "value": "${environment}" },
               { "key": "maxRows", "value": "1000" }
-            ],
-            "headers": [
-              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
             ]
           },
           "root_selector": "data",
@@ -110,9 +107,6 @@
               { "key": "serviceName", "value": "${serviceName}" },
               { "key": "environment", "value": "${environment}" },
               { "key": "maxRows", "value": "1000" }
-            ],
-            "headers": [
-              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
             ]
           },
           "root_selector": "data",
@@ -167,9 +161,6 @@
               { "key": "serviceName", "value": "${serviceName}" },
               { "key": "environment", "value": "${environment}" },
               { "key": "maxRows", "value": "1000" }
-            ],
-            "headers": [
-              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
             ]
           },
           "root_selector": "data",
@@ -204,9 +195,6 @@
               { "key": "serviceName", "value": "earshot" },
               { "key": "environment", "value": "${environment}" },
               { "key": "maxRows", "value": "1000" }
-            ],
-            "headers": [
-              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
             ]
           },
           "root_selector": "data",

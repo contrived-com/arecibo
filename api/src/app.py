@@ -115,22 +115,39 @@ def _is_trusted_internal_grafana_query(request: Request) -> bool:
 
     This is intentionally narrow:
     - `/query` endpoints only
-    - Host header must target internal `arecibo-api` service
     - Client source IP must be private
+    - Optional host allowlist for known internal/proxied hostnames
     """
     path = request.url.path or ""
     if not (path == "/query" or path.startswith("/query/")):
         return False
 
-    host_header = (request.headers.get("host") or "").lower()
-    if not host_header.startswith("arecibo-api"):
-        return False
-
     client_host = request.client.host if request.client else ""
     try:
-        return ipaddress.ip_address(client_host).is_private
+        if not ipaddress.ip_address(client_host).is_private:
+            return False
     except ValueError:
         return False
+
+    host_header = (request.headers.get("host") or "").lower()
+    if not host_header:
+        return True
+
+    trusted_hosts = {
+        "arecibo-api",
+        "arecibo-api:8080",
+        "127.0.0.1",
+        "127.0.0.1:8080",
+        "localhost",
+        "localhost:8080",
+        "arecibo.contrived.com",
+        "arecibo.contrived.com:443",
+        "contrived.com",
+        "contrived.com:443",
+        "www.contrived.com",
+        "www.contrived.com:443",
+    }
+    return host_header in trusted_hosts
 
 
 def create_app() -> FastAPI:
@@ -143,7 +160,7 @@ def create_app() -> FastAPI:
             settings.policy_ttl_sec,
             settings.policy_root_dir,
         )
-        telemetry_dir = os.path.join(os.path.dirname(API_DIR), "data", "telemetry")
+        telemetry_dir = settings.telemetry_root_dir
         app.state.telemetry_store = TelemetryStore(telemetry_dir)
         app.state.telemetry_reader = TelemetryReader(telemetry_dir)
         # Run retention in background so it doesn't block startup
@@ -160,7 +177,9 @@ def create_app() -> FastAPI:
     async def _auth_dependency(
         request: Request, x_api_key: str | None = Header(default=None, alias="X-API-Key")
     ):
-        if not x_api_key and _is_trusted_internal_grafana_query(request):
+        # Internal Grafana queries from the private service network are allowed
+        # regardless of placeholder/empty X-API-Key header values.
+        if _is_trusted_internal_grafana_query(request):
             return "internal-grafana-query"
         if not x_api_key:
             raise HTTPException(

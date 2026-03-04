@@ -7,6 +7,7 @@ services:
       - "127.0.0.1:8032:8080"
     volumes:
       - ./data/policies:/data/policies
+      - ./data/telemetry:/data/telemetry
     env_file:
       - .env
     environment:
@@ -19,6 +20,7 @@ services:
       - ARECIBO_API_KEYS_FIELD=${ARECIBO_API_KEYS_FIELD:-arecibo_api_keys}
       - ARECIBO_POLICY_TTL_SEC=${ARECIBO_POLICY_TTL_SEC:-60}
       - ARECIBO_POLICY_ROOT=${ARECIBO_POLICY_ROOT:-/data/policies}
+      - ARECIBO_TELEMETRY_ROOT=${ARECIBO_TELEMETRY_ROOT:-/data/telemetry}
       - ARECIBO_FORCE_GO_DARK=${ARECIBO_FORCE_GO_DARK:-false}
       - ARECIBO_FORCE_GO_DARK_ON=${ARECIBO_FORCE_GO_DARK_ON:-}
     networks:

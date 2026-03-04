@@ -13,6 +13,7 @@ class Settings:
     force_go_dark_on: set[str]
     policy_ttl_sec: int
     policy_root_dir: str
+    telemetry_root_dir: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -41,7 +42,9 @@ class Settings:
         force_go_dark = force_raw in {"1", "true", "yes", "on"}
 
         force_on_raw = os.getenv("ARECIBO_FORCE_GO_DARK_ON", "")
-        force_on = {item.strip() for item in force_on_raw.split(",") if item.strip()}
+        force_on = {
+            item.strip() for item in force_on_raw.split(",") if item.strip()
+        }
 
         ttl_raw = os.getenv("ARECIBO_POLICY_TTL_SEC", "60")
         policy_ttl_sec = max(5, int(ttl_raw))
@@ -50,6 +53,10 @@ class Settings:
             os.getenv("ARECIBO_POLICY_ROOT", "/data/policies").strip()
             or "/data/policies"
         )
+        telemetry_root_dir = (
+            os.getenv("ARECIBO_TELEMETRY_ROOT", "/data/telemetry").strip()
+            or "/data/telemetry"
+        )
 
         return cls(
             api_keys=keys,
@@ -57,4 +64,5 @@ class Settings:
             force_go_dark_on=force_on,
             policy_ttl_sec=policy_ttl_sec,
             policy_root_dir=policy_root_dir,
+            telemetry_root_dir=telemetry_root_dir,
         )

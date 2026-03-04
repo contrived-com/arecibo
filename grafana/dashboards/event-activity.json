@@ -52,9 +52,6 @@
               { "key": "environment", "value": "${environment}" },
               { "key": "bucketWidthSec", "value": "60" },
               { "key": "maxRows", "value": "5000" }
-            ],
-            "headers": [
-              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
             ]
           },
           "root_selector": "data",
@@ -101,9 +98,6 @@
               { "key": "serviceName", "value": "${serviceName}" },
               { "key": "environment", "value": "${environment}" },
               { "key": "maxRows", "value": "200" }
-            ],
-            "headers": [
-              { "key": "X-API-Key", "value": "${ARECIBO_API_KEY}" }
             ]
           },
           "root_selector": "data",

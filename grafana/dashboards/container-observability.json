@@ -2,7 +2,7 @@
   "uid": "arecibo-container-observability",
   "title": "Arecibo - Container Observability",
   "tags": ["arecibo", "containers"],
-  "timezone": "utc",
+  "timezone": "browser",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 2,

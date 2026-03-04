@@ -191,6 +191,7 @@ class TelemetryReader:
         data = []
         for (svc, env), agg in sorted(aggregates.items()):
             last_hb = agg["lastHeartbeatAt"]
+            last_announced = agg["lastAnnouncedAt"] or last_hb
             if last_hb is None:
                 status = "offline"
             elif (now - last_hb).total_seconds() > 900:  # 15 min
@@ -204,7 +205,7 @@ class TelemetryReader:
                 "serviceName": svc,
                 "environment": env,
                 "instanceCount": len(agg["instances"]),
-                "lastAnnouncedAt": _format_ts(agg["lastAnnouncedAt"]) if agg["lastAnnouncedAt"] else None,
+                "lastAnnouncedAt": _format_ts(last_announced) if last_announced else None,
                 "lastHeartbeatAt": _format_ts(last_hb) if last_hb else None,
                 "status": status,
             })

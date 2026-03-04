@@ -2,7 +2,7 @@
   "uid": "arecibo-fleet-overview",
   "title": "Arecibo - Fleet Overview",
   "tags": ["arecibo"],
-  "timezone": "utc",
+  "timezone": "browser",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,

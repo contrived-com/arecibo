@@ -205,6 +205,27 @@ class TestFleetHealth:
         body = resp.json()
         assert len(body["data"]) <= 2
 
+    def test_last_announced_falls_back_to_last_heartbeat(self, query_client, auth):
+        client, tel_dir = query_client
+        hb_ts = "2026-03-03T12:34:56Z"
+        _seed_heartbeat(tel_dir, "2026-03-03", "svc-no-announce", "prod", "i-1", hb_ts)
+
+        resp = client.get(
+            "/query/fleet-health",
+            headers=auth,
+            params={
+                "start": "2026-03-03T00:00:00Z",
+                "end": "2026-03-03T23:59:59Z",
+                "serviceName": "svc-no-announce",
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["data"]) == 1
+        row = body["data"][0]
+        assert row["lastHeartbeatAt"] == hb_ts
+        assert row["lastAnnouncedAt"] == hb_ts
+
 
 # ---- Heartbeat Freshness ----
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
 import os
 import sys
@@ -109,6 +110,29 @@ def _validate_policy_key_part(value: str, field_name: str) -> str:
     return clean
 
 
+def _is_trusted_internal_grafana_query(request: Request) -> bool:
+    """Allow Grafana-internal query reads without X-API-Key.
+
+    This is intentionally narrow:
+    - `/query` endpoints only
+    - Host header must target internal `arecibo-api` service
+    - Client source IP must be private
+    """
+    path = request.url.path or ""
+    if not (path == "/query" or path.startswith("/query/")):
+        return False
+
+    host_header = (request.headers.get("host") or "").lower()
+    if not host_header.startswith("arecibo-api"):
+        return False
+
+    client_host = request.client.host if request.client else ""
+    try:
+        return ipaddress.ip_address(client_host).is_private
+    except ValueError:
+        return False
+
+
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -136,6 +160,8 @@ def create_app() -> FastAPI:
     async def _auth_dependency(
         request: Request, x_api_key: str | None = Header(default=None, alias="X-API-Key")
     ):
+        if not x_api_key and _is_trusted_internal_grafana_query(request):
+            return "internal-grafana-query"
         if not x_api_key:
             raise HTTPException(
                 status_code=401,

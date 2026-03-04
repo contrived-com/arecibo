@@ -37,11 +37,19 @@
             "minimum": 0
           },
           "networkRxBytes": {
-            "type": "integer",
+            "type": ["integer", "null"],
             "minimum": 0
           },
           "networkTxBytes": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "heartbeatCount": {
             "type": "integer",
+            "minimum": 0
+          },
+          "transponderUptimeSec": {
+            "type": ["number", "null"],
             "minimum": 0
           },
           "containerMemoryCurrentBytes": {

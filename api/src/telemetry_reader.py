@@ -411,14 +411,15 @@ class TelemetryReader:
                     status = payload.get("status", {})
                     container_points.setdefault((svc, env, inst_id), []).append({
                         "ts": ts,
-                        "rx": max(0, _to_int(status.get("containerRxBytesSinceLastHeartbeat")) or 0),
-                        "tx": max(0, _to_int(status.get("containerTxBytesSinceLastHeartbeat")) or 0),
+                        "rx": _to_int(status.get("containerRxBytesSinceLastHeartbeat")),
+                        "tx": _to_int(status.get("containerTxBytesSinceLastHeartbeat")),
                         "containerMemoryCurrentBytes": _to_int(status.get("containerMemoryCurrentBytes")),
                         "containerMemoryMaxBytes": _to_int(status.get("containerMemoryMaxBytes")),
                         "transponderRssBytes": _to_int(status.get("transponderRssBytes")),
                         "primaryAppRssBytes": _to_int(status.get("primaryAppRssBytes")),
                         "transponderCpuUserSec": _to_float(status.get("transponderCpuUserSec")),
                         "transponderCpuSystemSec": _to_float(status.get("transponderCpuSystemSec")),
+                        "transponderUptimeSec": _to_int(status.get("transponderUptimeSec")),
                     })
 
         # aggregate by bucket and grouping key (container or service+environment)
@@ -443,21 +444,30 @@ class TelemetryReader:
                     "_containerSet": set(),
                     "networkRxBytes": 0,
                     "networkTxBytes": 0,
+                    "heartbeatCount": 0,
                     "containerMemoryCurrentBytes": 0,
                     "containerMemoryMaxBytes": 0,
                     "transponderRssBytes": 0,
                     "primaryAppRssBytes": 0,
+                    "transponderUptimeSec": 0,
                     "cpuPct": 0.0,
+                    "_rxSamples": 0,
+                    "_txSamples": 0,
                     "_cpuSamples": 0,
                     "_memorySamples": 0,
                     "_maxSamples": 0,
                     "_rssSamples": 0,
                     "_appRssSamples": 0,
+                    "_uptimeSamples": 0,
                 })
 
-                # Network in heartbeat is already deltas for "since last heartbeat".
-                agg["networkRxBytes"] += point["rx"]
-                agg["networkTxBytes"] += point["tx"]
+                agg["heartbeatCount"] += 1
+                if point["rx"] is not None:
+                    agg["networkRxBytes"] += max(0, point["rx"])
+                    agg["_rxSamples"] += 1
+                if point["tx"] is not None:
+                    agg["networkTxBytes"] += max(0, point["tx"])
+                    agg["_txSamples"] += 1
 
                 if point["containerMemoryCurrentBytes"] is not None:
                     agg["containerMemoryCurrentBytes"] += point["containerMemoryCurrentBytes"]
@@ -471,6 +481,9 @@ class TelemetryReader:
                 if point["primaryAppRssBytes"] is not None:
                     agg["primaryAppRssBytes"] += point["primaryAppRssBytes"]
                     agg["_appRssSamples"] += 1
+                if point["transponderUptimeSec"] is not None:
+                    agg["transponderUptimeSec"] += point["transponderUptimeSec"]
+                    agg["_uptimeSamples"] += 1
 
                 if previous is not None:
                     dt_sec = max(1e-6, (point["ts"] - previous["ts"]).total_seconds())
@@ -499,8 +512,14 @@ class TelemetryReader:
                 "bucket": _format_ts(agg["bucket"]),
                 "serviceName": agg["serviceName"],
                 "environment": agg["environment"],
-                "networkRxBytes": agg["networkRxBytes"],
-                "networkTxBytes": agg["networkTxBytes"],
+                "networkRxBytes": agg["networkRxBytes"] if agg["_rxSamples"] > 0 else None,
+                "networkTxBytes": agg["networkTxBytes"] if agg["_txSamples"] > 0 else None,
+                "heartbeatCount": agg["heartbeatCount"],
+                "transponderUptimeSec": (
+                    round(agg["transponderUptimeSec"] / agg["_uptimeSamples"], 1)
+                    if agg["_uptimeSamples"] > 0
+                    else None
+                ),
                 "containerMemoryCurrentBytes": (
                     agg["containerMemoryCurrentBytes"] if agg["_memorySamples"] > 0 else None
                 ),

@@ -479,6 +479,8 @@ class TestContainerMetrics:
         row = rows[0]
         assert row["networkRxBytes"] == 2500
         assert row["networkTxBytes"] == 1300
+        assert row["heartbeatCount"] == 2
+        assert row["transponderUptimeSec"] == 60.0
         assert row["containerMemoryCurrentBytes"] == 2100
         assert row["containerMemoryMaxBytes"] == 4100
 
@@ -530,6 +532,7 @@ class TestContainerMetrics:
         assert rows[0]["containerCount"] == 2
         assert rows[0]["networkRxBytes"] == 300
         assert rows[0]["networkTxBytes"] == 150
+        assert rows[0]["heartbeatCount"] == 2
 
     def test_rollup_validation(self, query_client, auth):
         client, _ = query_client

@@ -40,7 +40,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Network RX by Container (30s)",
+      "title": "Heartbeat Count by Container (30s)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
@@ -66,7 +66,7 @@
           "root_selector": "data",
           "columns": [
             { "selector": "bucket", "text": "Time", "type": "timestamp" },
-            { "selector": "networkRxBytes", "text": "Network RX Bytes", "type": "number" },
+            { "selector": "heartbeatCount", "text": "Heartbeat Count", "type": "number" },
             { "selector": "instanceId", "text": "Instance", "type": "string" }
           ]
         }
@@ -78,7 +78,7 @@
     },
     {
       "id": 2,
-      "title": "Network TX by Container (30s)",
+      "title": "Transponder Uptime by Container (sec)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
@@ -104,7 +104,7 @@
           "root_selector": "data",
           "columns": [
             { "selector": "bucket", "text": "Time", "type": "timestamp" },
-            { "selector": "networkTxBytes", "text": "Network TX Bytes", "type": "number" },
+            { "selector": "transponderUptimeSec", "text": "Transponder Uptime Sec", "type": "number" },
             { "selector": "instanceId", "text": "Instance", "type": "string" }
           ]
         }
@@ -192,7 +192,7 @@
     },
     {
       "id": 5,
-      "title": "Service Rollup: Network RX/TX (30s)",
+      "title": "Service Rollup: Heartbeats per 30s",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
       "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
@@ -217,8 +217,7 @@
           "root_selector": "data",
           "columns": [
             { "selector": "bucket", "text": "Time", "type": "timestamp" },
-            { "selector": "networkRxBytes", "text": "Service Network RX", "type": "number" },
-            { "selector": "networkTxBytes", "text": "Service Network TX", "type": "number" }
+            { "selector": "heartbeatCount", "text": "Service Heartbeat Count", "type": "number" }
           ]
         }
       ],
@@ -258,6 +257,8 @@
             { "selector": "serviceName", "text": "Service", "type": "string" },
             { "selector": "environment", "text": "Environment", "type": "string" },
             { "selector": "instanceId", "text": "Instance", "type": "string" },
+            { "selector": "heartbeatCount", "text": "Heartbeat Count", "type": "number" },
+            { "selector": "transponderUptimeSec", "text": "Transponder Uptime Sec", "type": "number" },
             { "selector": "networkRxBytes", "text": "RX Bytes", "type": "number" },
             { "selector": "networkTxBytes", "text": "TX Bytes", "type": "number" },
             { "selector": "containerMemoryCurrentBytes", "text": "Container Mem Current", "type": "number" },

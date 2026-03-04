@@ -51,6 +51,7 @@ services:
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_LIVE_ALLOWED_ORIGINS=${GRAFANA_LIVE_ALLOWED_ORIGINS:-https://contrived.com,https://www.contrived.com}
       - GF_NEWS_NEWS_FEED_ENABLED=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/fleet-overview.json
       - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
       - GF_LOG_LEVEL=warn
     networks:

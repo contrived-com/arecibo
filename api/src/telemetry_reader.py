@@ -356,6 +356,182 @@ class TelemetryReader:
             },
         }
 
+    def query_container_metrics(
+        self,
+        start: datetime,
+        end: datetime,
+        bucket_width_sec: int = 30,
+        service_name: str | None = None,
+        environment: str | None = None,
+        instance_id: str | None = None,
+        rollup: str = "container",
+        max_rows: int = 10000,
+    ) -> dict:
+        """Bucketed heartbeat resource/network metrics for containers or services."""
+
+        def _to_int(value: object) -> int | None:
+            if isinstance(value, bool):
+                return None
+            if isinstance(value, int):
+                return value
+            if isinstance(value, float):
+                return int(value)
+            return None
+
+        def _to_float(value: object) -> float | None:
+            if isinstance(value, bool):
+                return None
+            if isinstance(value, (int, float)):
+                return float(value)
+            return None
+
+        # container key -> points ordered later by timestamp
+        container_points: dict[tuple[str, str, str], list[dict]] = {}
+        for _date_str, date_dir in self._date_dirs_in_range(start, end):
+            for svc_name, env_name, partition_dir in self._service_env_dirs(
+                date_dir, service_name, environment
+            ):
+                for rec in self._read_jsonl(partition_dir / "heartbeat.jsonl"):
+                    payload = rec.get("payload", {})
+                    identity = payload.get("identity", {})
+                    svc = _safe_name(identity.get("serviceName", svc_name))
+                    env = _safe_name(identity.get("environment", env_name))
+                    inst_id = str(identity.get("instanceId", "")).strip()
+                    if not inst_id:
+                        continue
+                    if instance_id and inst_id != instance_id:
+                        continue
+
+                    sent_at = payload.get("sentAt") or rec.get("receivedAt")
+                    ts = _parse_ts(sent_at) if sent_at else None
+                    if not ts or ts < start or ts > end:
+                        continue
+
+                    status = payload.get("status", {})
+                    container_points.setdefault((svc, env, inst_id), []).append({
+                        "ts": ts,
+                        "rx": max(0, _to_int(status.get("containerRxBytesSinceLastHeartbeat")) or 0),
+                        "tx": max(0, _to_int(status.get("containerTxBytesSinceLastHeartbeat")) or 0),
+                        "containerMemoryCurrentBytes": _to_int(status.get("containerMemoryCurrentBytes")),
+                        "containerMemoryMaxBytes": _to_int(status.get("containerMemoryMaxBytes")),
+                        "transponderRssBytes": _to_int(status.get("transponderRssBytes")),
+                        "primaryAppRssBytes": _to_int(status.get("primaryAppRssBytes")),
+                        "transponderCpuUserSec": _to_float(status.get("transponderCpuUserSec")),
+                        "transponderCpuSystemSec": _to_float(status.get("transponderCpuSystemSec")),
+                    })
+
+        # aggregate by bucket and grouping key (container or service+environment)
+        aggregates: dict[tuple, dict] = {}
+        for (svc, env, inst), points in container_points.items():
+            previous: dict | None = None
+            for point in sorted(points, key=lambda p: p["ts"]):
+                seconds_since_start = (point["ts"] - start).total_seconds()
+                bucket_index = int(seconds_since_start // bucket_width_sec)
+                bucket_start = start + timedelta(seconds=bucket_index * bucket_width_sec)
+
+                group_key = (svc, env, bucket_start, inst)
+                if rollup == "service":
+                    group_key = (svc, env, bucket_start)
+
+                agg = aggregates.setdefault(group_key, {
+                    "serviceName": svc,
+                    "environment": env,
+                    "bucket": bucket_start,
+                    "instanceId": inst if rollup == "container" else None,
+                    "containerCount": 0,
+                    "_containerSet": set(),
+                    "networkRxBytes": 0,
+                    "networkTxBytes": 0,
+                    "containerMemoryCurrentBytes": 0,
+                    "containerMemoryMaxBytes": 0,
+                    "transponderRssBytes": 0,
+                    "primaryAppRssBytes": 0,
+                    "cpuPct": 0.0,
+                    "_cpuSamples": 0,
+                    "_memorySamples": 0,
+                    "_maxSamples": 0,
+                    "_rssSamples": 0,
+                    "_appRssSamples": 0,
+                })
+
+                # Network in heartbeat is already deltas for "since last heartbeat".
+                agg["networkRxBytes"] += point["rx"]
+                agg["networkTxBytes"] += point["tx"]
+
+                if point["containerMemoryCurrentBytes"] is not None:
+                    agg["containerMemoryCurrentBytes"] += point["containerMemoryCurrentBytes"]
+                    agg["_memorySamples"] += 1
+                if point["containerMemoryMaxBytes"] is not None:
+                    agg["containerMemoryMaxBytes"] += point["containerMemoryMaxBytes"]
+                    agg["_maxSamples"] += 1
+                if point["transponderRssBytes"] is not None:
+                    agg["transponderRssBytes"] += point["transponderRssBytes"]
+                    agg["_rssSamples"] += 1
+                if point["primaryAppRssBytes"] is not None:
+                    agg["primaryAppRssBytes"] += point["primaryAppRssBytes"]
+                    agg["_appRssSamples"] += 1
+
+                if previous is not None:
+                    dt_sec = max(1e-6, (point["ts"] - previous["ts"]).total_seconds())
+                    user_now = point["transponderCpuUserSec"]
+                    user_prev = previous["transponderCpuUserSec"]
+                    sys_now = point["transponderCpuSystemSec"]
+                    sys_prev = previous["transponderCpuSystemSec"]
+                    if (
+                        user_now is not None
+                        and user_prev is not None
+                        and sys_now is not None
+                        and sys_prev is not None
+                    ):
+                        cpu_delta = (user_now - user_prev) + (sys_now - sys_prev)
+                        if cpu_delta >= 0:
+                            agg["cpuPct"] += (cpu_delta / dt_sec) * 100.0
+                            agg["_cpuSamples"] += 1
+
+                if rollup == "service":
+                    agg["_containerSet"].add(inst)
+                previous = point
+
+        rows = []
+        for agg in sorted(aggregates.values(), key=lambda r: (r["bucket"], r["serviceName"], r["environment"], r.get("instanceId") or "")):
+            row = {
+                "bucket": _format_ts(agg["bucket"]),
+                "serviceName": agg["serviceName"],
+                "environment": agg["environment"],
+                "networkRxBytes": agg["networkRxBytes"],
+                "networkTxBytes": agg["networkTxBytes"],
+                "containerMemoryCurrentBytes": (
+                    agg["containerMemoryCurrentBytes"] if agg["_memorySamples"] > 0 else None
+                ),
+                "containerMemoryMaxBytes": (
+                    agg["containerMemoryMaxBytes"] if agg["_maxSamples"] > 0 else None
+                ),
+                "transponderRssBytes": (
+                    agg["transponderRssBytes"] if agg["_rssSamples"] > 0 else None
+                ),
+                "primaryAppRssBytes": (
+                    agg["primaryAppRssBytes"] if agg["_appRssSamples"] > 0 else None
+                ),
+                "cpuPct": round(agg["cpuPct"] / agg["_cpuSamples"], 3) if agg["_cpuSamples"] > 0 else None,
+            }
+            if rollup == "container":
+                row["instanceId"] = agg["instanceId"]
+            else:
+                row["containerCount"] = len(agg["_containerSet"])
+            rows.append(row)
+
+        rows = rows[:max_rows]
+        return {
+            "data": rows,
+            "meta": {
+                "totalRows": len(rows),
+                "bucketWidthSec": bucket_width_sec,
+                "rollup": rollup,
+                "start": _format_ts(start),
+                "end": _format_ts(end),
+            },
+        }
+
     def query_go_dark_status(
         self,
         service_name: str | None = None,

@@ -413,6 +413,60 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /query/container-metrics:
+    get:
+      tags: [observability]
+      summary: Container resource and network metrics time series
+      operationId: getContainerMetrics
+      description: |
+        Returns heartbeat-derived container metrics in time buckets for
+        dashboard visualization. Supports per-container view or service-level
+        rollup.
+      parameters:
+        - $ref: "#/components/parameters/QueryStart"
+        - $ref: "#/components/parameters/QueryEnd"
+        - $ref: "#/components/parameters/FilterServiceName"
+        - $ref: "#/components/parameters/FilterEnvironment"
+        - $ref: "#/components/parameters/MaxRows"
+        - name: instanceId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter results to a specific container instanceId.
+        - name: rollup
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [container, service]
+            default: container
+          description: |
+            Aggregation mode. `container` returns per-instance rows.
+            `service` returns service/environment rollups.
+        - name: bucketWidthSec
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 10
+            maximum: 86400
+            default: 30
+          description: |
+            Width of each time bucket in seconds. Default 30 seconds.
+            Minimum 10 seconds, maximum 86400 (24 hours).
+      responses:
+        "200":
+          description: Container metrics time series
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/query/container-metrics.1.0.0.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /query/recent-events:
     get:
       tags: [observability]

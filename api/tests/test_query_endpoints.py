@@ -77,8 +77,14 @@ def _seed_announce(tel_dir: Path, date: str, svc: str, env: str, instance_id: st
 
 def _seed_heartbeat(
     tel_dir: Path, date: str, svc: str, env: str, instance_id: str,
-    sent_at: str, go_dark: bool = False,
+    sent_at: str, go_dark: bool = False, status_overrides: dict | None = None,
 ):
+    status = {
+        "transponderUptimeSec": 60,
+        "goDark": go_dark,
+    }
+    if status_overrides:
+        status.update(status_overrides)
     _write_jsonl(tel_dir / date / svc / env / "heartbeat.jsonl", [{
         "receivedAt": sent_at,
         "payload": {
@@ -88,10 +94,7 @@ def _seed_heartbeat(
                 "instanceId": instance_id,
             },
             "sentAt": sent_at,
-            "status": {
-                "transponderUptimeSec": 60,
-                "goDark": go_dark,
-            },
+            "status": status,
         },
     }])
 
@@ -397,6 +400,124 @@ class TestGoDarkStatus:
         )
         body = resp.json()
         assert body["meta"]["totalRows"] == 1
+
+
+# ---- Container Metrics ----
+
+class TestContainerMetrics:
+    def test_returns_per_container_network_and_memory_metrics(
+        self,
+        query_client,
+        auth,
+    ):
+        client, tel_dir = query_client
+        _seed_heartbeat(
+            tel_dir,
+            "2026-03-03",
+            "svc",
+            "prod",
+            "i-1",
+            "2026-03-03T12:00:10Z",
+            status_overrides={
+                "containerRxBytesSinceLastHeartbeat": 1200,
+                "containerTxBytesSinceLastHeartbeat": 600,
+                "containerMemoryCurrentBytes": 1000,
+                "containerMemoryMaxBytes": 2000,
+            },
+        )
+        _seed_heartbeat(
+            tel_dir,
+            "2026-03-03",
+            "svc",
+            "prod",
+            "i-1",
+            "2026-03-03T12:00:20Z",
+            status_overrides={
+                "containerRxBytesSinceLastHeartbeat": 1300,
+                "containerTxBytesSinceLastHeartbeat": 700,
+                "containerMemoryCurrentBytes": 1100,
+                "containerMemoryMaxBytes": 2100,
+            },
+        )
+
+        resp = client.get(
+            "/query/container-metrics",
+            headers=auth,
+            params={
+                "start": "2026-03-03T12:00:00Z",
+                "end": "2026-03-03T12:01:00Z",
+                "bucketWidthSec": 30,
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["meta"]["rollup"] == "container"
+        assert body["meta"]["bucketWidthSec"] == 30
+        rows = [r for r in body["data"] if r["instanceId"] == "i-1"]
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["networkRxBytes"] == 2500
+        assert row["networkTxBytes"] == 1300
+        assert row["containerMemoryCurrentBytes"] == 2100
+        assert row["containerMemoryMaxBytes"] == 4100
+
+    def test_service_rollup_counts_containers(self, query_client, auth):
+        client, tel_dir = query_client
+        _seed_heartbeat(
+            tel_dir,
+            "2026-03-03",
+            "svc",
+            "prod",
+            "i-1",
+            "2026-03-03T12:00:10Z",
+            status_overrides={
+                "containerRxBytesSinceLastHeartbeat": 100,
+                "containerTxBytesSinceLastHeartbeat": 50,
+            },
+        )
+        _seed_heartbeat(
+            tel_dir,
+            "2026-03-03",
+            "svc",
+            "prod",
+            "i-2",
+            "2026-03-03T12:00:15Z",
+            status_overrides={
+                "containerRxBytesSinceLastHeartbeat": 200,
+                "containerTxBytesSinceLastHeartbeat": 100,
+            },
+        )
+
+        resp = client.get(
+            "/query/container-metrics",
+            headers=auth,
+            params={
+                "start": "2026-03-03T12:00:00Z",
+                "end": "2026-03-03T12:01:00Z",
+                "bucketWidthSec": 30,
+                "rollup": "service",
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        rows = [
+            r
+            for r in body["data"]
+            if r["serviceName"] == "svc" and r["environment"] == "prod"
+        ]
+        assert len(rows) == 1
+        assert rows[0]["containerCount"] == 2
+        assert rows[0]["networkRxBytes"] == 300
+        assert rows[0]["networkTxBytes"] == 150
+
+    def test_rollup_validation(self, query_client, auth):
+        client, _ = query_client
+        resp = client.get(
+            "/query/container-metrics",
+            headers=auth,
+            params={"rollup": "invalid"},
+        )
+        assert resp.status_code == 422
 
 
 # ---- Recent Events ----

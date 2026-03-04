@@ -130,6 +130,35 @@ def create_query_router(auth_dependency) -> APIRouter:
             max_rows=maxRows,
         )
 
+    @router.get("/container-metrics")
+    async def get_container_metrics(
+        request: Request,
+        _: str = Depends(auth_dependency),
+        start: str | None = Query(default=None),
+        end: str | None = Query(default=None),
+        serviceName: str | None = Query(default=None),
+        environment: str | None = Query(default=None),
+        instanceId: str | None = Query(default=None),
+        rollup: str = Query(
+            default="container",
+            pattern="^(container|service)$",
+        ),
+        bucketWidthSec: int = Query(default=30, ge=10, le=86400),
+        maxRows: int = Query(default=10000, ge=1, le=10000),
+    ):
+        start_dt, end_dt = _parse_time_range(start, end)
+        reader = _get_reader(request)
+        return reader.query_container_metrics(
+            start=start_dt,
+            end=end_dt,
+            bucket_width_sec=bucketWidthSec,
+            service_name=serviceName,
+            environment=environment,
+            instance_id=instanceId,
+            rollup=rollup,
+            max_rows=maxRows,
+        )
+
     @router.get("/recent-events")
     async def get_recent_events(
         request: Request,

@@ -62,6 +62,10 @@ class SchemaRegistry:
             "events_batch",
             SCHEMA_DIR / "ingest" / "events-batch.1.0.0.json",
         )
+        self.register(
+            "query_container_metrics",
+            SCHEMA_DIR / "query" / "container-metrics.1.0.0.json",
+        )
 
     def register(self, name: str, path: Path) -> None:
         schema_uri = path.resolve().as_uri()

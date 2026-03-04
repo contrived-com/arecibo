@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arecibo/schemas/query/container-metrics/1.0.0",
+  "type": "object",
+  "required": ["data", "meta"],
+  "properties": {
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "bucket",
+          "serviceName",
+          "environment",
+          "networkRxBytes",
+          "networkTxBytes"
+        ],
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "Z$"
+          },
+          "serviceName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "environment": {
+            "type": "string"
+          },
+          "instanceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "containerCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "networkRxBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "networkTxBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "containerMemoryCurrentBytes": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "containerMemoryMaxBytes": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "transponderRssBytes": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "primaryAppRssBytes": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "cpuPct": {
+            "type": ["number", "null"],
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["totalRows", "bucketWidthSec", "rollup", "start", "end"],
+      "properties": {
+        "totalRows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bucketWidthSec": {
+          "type": "integer",
+          "minimum": 10
+        },
+        "rollup": {
+          "type": "string",
+          "enum": ["container", "service"]
+        },
+        "start": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

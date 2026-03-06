@@ -368,7 +368,7 @@ class TelemetryReader:
         rollup: str = "container",
         max_rows: int = 10000,
     ) -> dict:
-        """Bucketed heartbeat resource/network metrics for containers or services."""
+        """Bucketed heartbeat metrics for container/service/fleet views."""
 
         def _to_int(value: object) -> int | None:
             if isinstance(value, bool):
@@ -434,10 +434,12 @@ class TelemetryReader:
                 group_key = (svc, env, bucket_start, inst)
                 if rollup == "service":
                     group_key = (svc, env, bucket_start)
+                if rollup == "fleet":
+                    group_key = (bucket_start,)
 
                 agg = aggregates.setdefault(group_key, {
-                    "serviceName": svc,
-                    "environment": env,
+                    "serviceName": svc if rollup != "fleet" else "all-services",
+                    "environment": env if rollup != "fleet" else "all-envs",
                     "bucket": bucket_start,
                     "instanceId": inst if rollup == "container" else None,
                     "containerCount": 0,
@@ -502,7 +504,7 @@ class TelemetryReader:
                             agg["cpuPct"] += (cpu_delta / dt_sec) * 100.0
                             agg["_cpuSamples"] += 1
 
-                if rollup == "service":
+                if rollup in ("service", "fleet"):
                     agg["_containerSet"].add(inst)
                 previous = point
 

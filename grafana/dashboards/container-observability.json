@@ -40,10 +40,18 @@
   "panels": [
     {
       "id": 1,
-      "title": "Heartbeat Count by Container (30s)",
+      "title": "Network RX by Container (30s)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "bytes",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "refId": "A",
@@ -66,22 +74,34 @@
           "root_selector": "data",
           "columns": [
             { "selector": "bucket", "text": "Time", "type": "timestamp" },
-            { "selector": "heartbeatCount", "text": "Heartbeat Count", "type": "number" },
+            { "selector": "networkRxBytes", "text": "Network RX Bytes", "type": "number" },
             { "selector": "instanceId", "text": "Instance", "type": "string" }
           ]
         }
       ],
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["lastNotNull", "min", "max", "mean"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
       }
     },
     {
       "id": 2,
-      "title": "Transponder Uptime by Container (sec)",
+      "title": "Network TX by Container (30s)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "bytes",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "refId": "A",
@@ -104,22 +124,34 @@
           "root_selector": "data",
           "columns": [
             { "selector": "bucket", "text": "Time", "type": "timestamp" },
-            { "selector": "transponderUptimeSec", "text": "Transponder Uptime Sec", "type": "number" },
+            { "selector": "networkTxBytes", "text": "Network TX Bytes", "type": "number" },
             { "selector": "instanceId", "text": "Instance", "type": "string" }
           ]
         }
       ],
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["lastNotNull", "min", "max", "mean"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
       }
     },
     {
       "id": 3,
-      "title": "Container Memory Current by Container",
+      "title": "Container Memory by Container",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "bytes",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "refId": "A",
@@ -142,14 +174,18 @@
           "root_selector": "data",
           "columns": [
             { "selector": "bucket", "text": "Time", "type": "timestamp" },
-            { "selector": "containerMemoryCurrentBytes", "text": "Container Memory Current", "type": "number" },
+            { "selector": "containerMemoryCurrentBytes", "text": "Container Memory Current Bytes", "type": "number" },
             { "selector": "instanceId", "text": "Instance", "type": "string" }
           ]
         }
       ],
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["lastNotNull", "min", "max", "mean"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
       }
     },
     {
@@ -158,6 +194,14 @@
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "percent",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "refId": "A",
@@ -186,16 +230,28 @@
         }
       ],
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["lastNotNull", "min", "max", "mean"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
       }
     },
     {
       "id": 5,
-      "title": "Service Rollup: Heartbeats per 30s",
+      "title": "Combined Network View (Fleet RX + TX)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
       "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "bytes",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8 }
+        },
+        "overrides": []
+      },
       "targets": [
         {
           "refId": "A",
@@ -209,7 +265,7 @@
               { "key": "end", "value": "${__to:date:iso}" },
               { "key": "serviceName", "value": "${serviceName}" },
               { "key": "environment", "value": "${environment}" },
-              { "key": "rollup", "value": "service" },
+              { "key": "rollup", "value": "fleet" },
               { "key": "bucketWidthSec", "value": "30" },
               { "key": "maxRows", "value": "10000" }
             ]
@@ -217,20 +273,97 @@
           "root_selector": "data",
           "columns": [
             { "selector": "bucket", "text": "Time", "type": "timestamp" },
-            { "selector": "heartbeatCount", "text": "Service Heartbeat Count", "type": "number" }
+            { "selector": "networkRxBytes", "text": "Fleet Network RX", "type": "number" }
+          ]
+        },
+        {
+          "refId": "B",
+          "type": "json",
+          "source": "url",
+          "url": "/query/container-metrics",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              { "key": "start", "value": "${__from:date:iso}" },
+              { "key": "end", "value": "${__to:date:iso}" },
+              { "key": "serviceName", "value": "${serviceName}" },
+              { "key": "environment", "value": "${environment}" },
+              { "key": "rollup", "value": "fleet" },
+              { "key": "bucketWidthSec", "value": "30" },
+              { "key": "maxRows", "value": "10000" }
+            ]
+          },
+          "root_selector": "data",
+          "columns": [
+            { "selector": "bucket", "text": "Time", "type": "timestamp" },
+            { "selector": "networkTxBytes", "text": "Fleet Network TX", "type": "number" }
           ]
         }
       ],
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "multi" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["lastNotNull", "min", "max", "mean"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
       }
     },
     {
       "id": 6,
+      "title": "Heartbeat Count by Container (30s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8 }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "url": "/query/container-metrics",
+          "url_options": {
+            "method": "GET",
+            "params": [
+              { "key": "start", "value": "${__from:date:iso}" },
+              { "key": "end", "value": "${__to:date:iso}" },
+              { "key": "serviceName", "value": "${serviceName}" },
+              { "key": "environment", "value": "${environment}" },
+              { "key": "instanceId", "value": "${instanceId}" },
+              { "key": "rollup", "value": "container" },
+              { "key": "bucketWidthSec", "value": "30" },
+              { "key": "maxRows", "value": "10000" }
+            ]
+          },
+          "root_selector": "data",
+          "columns": [
+            { "selector": "bucket", "text": "Time", "type": "timestamp" },
+            { "selector": "heartbeatCount", "text": "Heartbeat Count", "type": "number" },
+            { "selector": "instanceId", "text": "Instance", "type": "string" }
+          ]
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["lastNotNull", "min", "max", "mean"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 7,
       "title": "Latest Container Metrics Table",
       "type": "table",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "datasource": { "uid": "arecibo-api", "type": "yesoreyeram-infinity-datasource" },
       "targets": [
         {

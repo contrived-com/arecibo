@@ -439,11 +439,12 @@ paths:
           required: false
           schema:
             type: string
-            enum: [container, service]
+            enum: [container, service, fleet]
             default: container
           description: |
             Aggregation mode. `container` returns per-instance rows.
             `service` returns service/environment rollups.
+            `fleet` returns a single all-services rollup per bucket.
         - name: bucketWidthSec
           in: query
           required: false

@@ -534,6 +534,54 @@ class TestContainerMetrics:
         assert rows[0]["networkTxBytes"] == 150
         assert rows[0]["heartbeatCount"] == 2
 
+    def test_fleet_rollup_combines_all_containers(self, query_client, auth):
+        client, tel_dir = query_client
+        _seed_heartbeat(
+            tel_dir,
+            "2026-03-03",
+            "svc-a",
+            "prod",
+            "i-1",
+            "2026-03-03T12:00:10Z",
+            status_overrides={
+                "containerRxBytesSinceLastHeartbeat": 100,
+                "containerTxBytesSinceLastHeartbeat": 40,
+            },
+        )
+        _seed_heartbeat(
+            tel_dir,
+            "2026-03-03",
+            "svc-b",
+            "prod",
+            "i-2",
+            "2026-03-03T12:00:12Z",
+            status_overrides={
+                "containerRxBytesSinceLastHeartbeat": 250,
+                "containerTxBytesSinceLastHeartbeat": 90,
+            },
+        )
+
+        resp = client.get(
+            "/query/container-metrics",
+            headers=auth,
+            params={
+                "start": "2026-03-03T12:00:00Z",
+                "end": "2026-03-03T12:01:00Z",
+                "bucketWidthSec": 30,
+                "rollup": "fleet",
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        rows = body["data"]
+        assert len(rows) == 1
+        assert rows[0]["serviceName"] == "all-services"
+        assert rows[0]["environment"] == "all-envs"
+        assert rows[0]["containerCount"] == 2
+        assert rows[0]["networkRxBytes"] == 350
+        assert rows[0]["networkTxBytes"] == 130
+        assert rows[0]["heartbeatCount"] == 2
+
     def test_rollup_validation(self, query_client, auth):
         client, _ = query_client
         resp = client.get(

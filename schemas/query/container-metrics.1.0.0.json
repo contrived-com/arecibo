@@ -90,7 +90,7 @@
         },
         "rollup": {
           "type": "string",
-          "enum": ["container", "service"]
+          "enum": ["container", "service", "fleet"]
         },
         "start": {
           "type": "string",

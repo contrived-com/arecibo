@@ -141,7 +141,7 @@ def create_query_router(auth_dependency) -> APIRouter:
         instanceId: str | None = Query(default=None),
         rollup: str = Query(
             default="container",
-            pattern="^(container|service)$",
+            pattern="^(container|service|fleet)$",
         ),
         bucketWidthSec: int = Query(default=30, ge=10, le=86400),
         maxRows: int = Query(default=10000, ge=1, le=10000),

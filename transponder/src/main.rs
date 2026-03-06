@@ -1,6 +1,7 @@
 mod client;
 mod config;
 mod ingest;
+mod metrics;
 mod model;
 mod runtime;
 mod utils;

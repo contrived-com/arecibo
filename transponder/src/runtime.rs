@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use crate::client::CollectorClient;
 use crate::config::TransponderConfig;
 use crate::ingest::{IngestDatagramServer, IngestQueue};
+use crate::metrics::MetricSampler;
 use crate::model::{Directive, PolicyState, TransponderCounters};
 use crate::utils::{new_event_id, utc_now};
 
@@ -20,6 +21,7 @@ pub struct TransponderRuntime {
     ingest_server: Option<IngestDatagramServer>,
     stop: Arc<AtomicBool>,
     started_monotonic: Instant,
+    metric_sampler: MetricSampler,
 }
 
 impl TransponderRuntime {
@@ -35,6 +37,7 @@ impl TransponderRuntime {
             ingest_server: None,
             stop: Arc::new(AtomicBool::new(false)),
             started_monotonic: Instant::now(),
+            metric_sampler: MetricSampler::new(),
         }
     }
 
@@ -336,26 +339,83 @@ impl TransponderRuntime {
             _ => return,
         };
         let uptime = self.started_monotonic.elapsed().as_secs();
+        let sampled = self.metric_sampler.sample();
         let payload = {
             let c = self.counters.lock().unwrap();
+            let mut status = serde_json::Map::new();
+            status.insert(
+                "transponderUptimeSec".to_string(),
+                json!(uptime),
+            );
+            status.insert(
+                "maxEventQueueDepthSinceLastHeartbeat".to_string(),
+                json!(c.max_event_queue_depth_since_last_heartbeat),
+            );
+            status.insert(
+                "eventsReceivedTotal".to_string(),
+                json!(c.events_received_total),
+            );
+            status.insert(
+                "eventsSentTotal".to_string(),
+                json!(c.events_sent_total),
+            );
+            status.insert(
+                "eventsDroppedTotal".to_string(),
+                json!(c.events_dropped_total),
+            );
+            status.insert(
+                "eventsDroppedByQueueSizeSinceLastHeartbeat".to_string(),
+                json!(c.events_dropped_by_queue_size_since_last_heartbeat),
+            );
+            status.insert(
+                "eventsDroppedByPolicySinceLastHeartbeat".to_string(),
+                json!(c.events_dropped_by_policy_since_last_heartbeat),
+            );
+            status.insert(
+                "transponderRssBytes".to_string(),
+                json!(sampled.transponder_rss_bytes.unwrap_or(0)),
+            );
+            status.insert(
+                "goDark".to_string(),
+                json!(self.go_dark),
+            );
+            status.insert(
+                "policyVersion".to_string(),
+                json!(&self.policy.policy_version),
+            );
+
+            if let Some(v) = sampled.transponder_cpu_user_sec {
+                status.insert("transponderCpuUserSec".to_string(), json!(v));
+            }
+            if let Some(v) = sampled.transponder_cpu_system_sec {
+                status.insert("transponderCpuSystemSec".to_string(), json!(v));
+            }
+            if let Some(v) = sampled.primary_app_pid {
+                status.insert("primaryAppPid".to_string(), json!(v));
+            }
+            if let Some(v) = sampled.primary_app_rss_bytes {
+                status.insert("primaryAppRssBytes".to_string(), json!(v));
+            }
+            if let Some(v) = sampled.container_memory_current_bytes {
+                status.insert("containerMemoryCurrentBytes".to_string(), json!(v));
+            }
+            if let Some(v) = sampled.container_memory_max_bytes {
+                status.insert("containerMemoryMaxBytes".to_string(), json!(v));
+            }
+            if let Some(v) = sampled.container_rx_bytes_since_last_heartbeat {
+                status.insert("containerRxBytesSinceLastHeartbeat".to_string(), json!(v));
+            }
+            if let Some(v) = sampled.container_tx_bytes_since_last_heartbeat {
+                status.insert("containerTxBytesSinceLastHeartbeat".to_string(), json!(v));
+            }
+
             json!({
                 "schemaVersion": "1.0.0",
                 "eventType": "heartbeat",
                 "eventId": new_event_id("heartbeat"),
                 "sentAt": utc_now(),
                 "identity": self.identity(),
-                "status": {
-                    "transponderUptimeSec": uptime,
-                    "maxEventQueueDepthSinceLastHeartbeat": c.max_event_queue_depth_since_last_heartbeat,
-                    "eventsReceivedTotal": c.events_received_total,
-                    "eventsSentTotal": c.events_sent_total,
-                    "eventsDroppedTotal": c.events_dropped_total,
-                    "eventsDroppedByQueueSizeSinceLastHeartbeat": c.events_dropped_by_queue_size_since_last_heartbeat,
-                    "eventsDroppedByPolicySinceLastHeartbeat": c.events_dropped_by_policy_since_last_heartbeat,
-                    "transponderRssBytes": 0,
-                    "goDark": self.go_dark,
-                    "policyVersion": &self.policy.policy_version,
-                },
+                "status": status,
             })
         };
 

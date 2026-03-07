@@ -34,7 +34,10 @@ services:
       start_period: 10s
 
   arecibo-grafana:
-    image: grafana/grafana:11.5.2
+    image: ghcr.io/contrived-com/arecibo-grafana:prod
+    build:
+      context: .
+      dockerfile: Dockerfile.grafana
     container_name: arecibo-grafana
     restart: unless-stopped
     ports:

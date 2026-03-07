@@ -1,0 +1,2 @@
+# 2026-03-06: FROM grafana/grafana:11.5.2
+FROM ghcr.io/contrived-com/grafana-grafana-11-5-2-visa:2026-03-07_sha-8b37a2f_rt-arecibo-arecibo_tp-2ceb0e80_iss-20260307T033017Z

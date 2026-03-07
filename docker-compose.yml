@@ -49,6 +49,9 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-arecibo-admin}
       - GF_SECURITY_ADMIN_USER=admin
+      - VAULT_ADDR=${VAULT_ADDR}
+      - VAULT_ROLE_ID=${VAULT_ROLE_ID}
+      - VAULT_SECRET_ID=${VAULT_SECRET_ID}
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Editor
       - GF_AUTH_DISABLE_LOGIN_FORM=true
@@ -61,6 +64,7 @@ services:
       - GF_LOG_LEVEL=warn
     networks:
       - arecibo
+      - concordia
     depends_on:
       arecibo-api:
         condition: service_healthy

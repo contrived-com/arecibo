@@ -1,5 +1,6 @@
 # 2026-03-06: FROM python:3.12-slim
-FROM ghcr.io/contrived-com/python-3-12-slim-visa:2026-03-07_sha-ccc7089_rt-arecibo-arecibo_tp-2823763c_iss-20260307T003236Z
+# 2026-03-06: FROM ghcr.io/contrived-com/python-3-12-slim-visa:2026-03-07_sha-ccc7089_rt-arecibo-arecibo_tp-2823763c_iss-20260307T003236Z
+FROM ghcr.io/contrived-com/python-3-12-slim-visa:2026-03-07_sha-ccc7089_rt-arecibo-arecibo_tp-2823763c_iss-20260307T025445Z
 
 ARG GIT_COMMIT=dev
 ENV GIT_COMMIT=${GIT_COMMIT}

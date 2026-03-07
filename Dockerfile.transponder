@@ -19,7 +19,8 @@ RUN touch src/main.rs \
 
 # ---------- runtime ----------
 # 2026-03-06: FROM debian:bookworm-slim
-FROM ghcr.io/contrived-com/debian-bookworm-slim-visa:2026-03-07_sha-74d56e3_rt-arecibo-arecibo_tp-2823763c_iss-20260307T003236Z
+# 2026-03-06: FROM ghcr.io/contrived-com/debian-bookworm-slim-visa:2026-03-07_sha-74d56e3_rt-arecibo-arecibo_tp-2823763c_iss-20260307T003236Z
+FROM ghcr.io/contrived-com/debian-bookworm-slim-visa:2026-03-07_sha-74d56e3_rt-arecibo-arecibo_tp-2823763c_iss-20260307T025445Z
 
 ARG TRANSPONDER_REPOSITORY=unknown-repository
 ARG TRANSPONDER_COMMIT_SHA=unknown
